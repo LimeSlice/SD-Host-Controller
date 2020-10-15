@@ -1,5 +1,5 @@
-module sd_host_controller(clock, resetn, sd_dat, sd_cmd, sd_cd, sd_wp);
-    input clock, resetn, sd_cmd, sd_cd, sd_wp;
+module sd_host_controller(clk, resetn, sd_dat, sd_cmd, sd_cd, sd_wp);
+    input clk, resetn, sd_cmd, sd_cd, sd_wp;
     input [3:0] sd_dat;
 
 
