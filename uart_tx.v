@@ -5,7 +5,6 @@ module uart_tx (clk, resetn, pin, data, ctrl, state);
     output [7:0] state;
 
     reg [3:0] index;
-
     reg state_tx_en, state_tx_sending;
 
     assign ctrl_en      = ctrl[0];
