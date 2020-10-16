@@ -14,15 +14,17 @@ module uart (ex_clk, resetn, tx_pin, rx_pin, tx_data, rx_data, ctrl, uart_state)
     output [7:0] rx_data;
     output [7:0] uart_state;
 
-    wire bp_clk;
+    wire bp_clk, uart_tx_en, uart_tx_sending, uart_rx_contains;
+
+    assign uart_state = {ctrl[7:3], uart_rx_contains, uart_tx_sending, uart_tx_en};
 
     // clock divider to sample at BAUDRATE
     counter #(10, 625) clk_div (ex_clk, resetn, bp_clk);
     
     // transmitter
-    uart_tx tx (bp_clk, resetn, tx_pin, tx_data, ctrl, uart_state);
+    uart_tx tx (bp_clk, resetn, tx_pin, tx_data, ctrl, uart_tx_sending,, uart_tx_en);
 
     // receiver
-    uart_rx rx (bp_clk, resetn, rx_pin, rx_data, ctrl, uart_state);
+    uart_rx rx (bp_clk, resetn, rx_pin, rx_data, ctrl[2], uart_rx_contains);
 
 endmodule
