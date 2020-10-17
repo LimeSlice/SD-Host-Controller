@@ -1,5 +1,5 @@
-module uart_tx(clk, resetn, pin, data, ctrl, state_tx_sending, state_tx_en);
-    input clk, resetn;
+module uart_tx(clk, reset, pin, data, ctrl, state_tx_sending, state_tx_en);
+    input clk, reset;
     input [7:0] data, ctrl;
     output reg pin, state_tx_en, state_tx_sending;
 
@@ -8,8 +8,8 @@ module uart_tx(clk, resetn, pin, data, ctrl, state_tx_sending, state_tx_en);
     assign ctrl_tx_en      = ctrl[0];
     assign ctrl_tx_sending = ctrl[1];
 
-    always @(posedge clk, posedge resetn) begin
-        if (resetn) begin
+    always @(posedge clk, posedge reset) begin
+        if (reset) begin
             pin <= 1'b1;
             index <= 4'b0;
             state_tx_sending <= 1'b0;

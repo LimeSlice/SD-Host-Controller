@@ -5,7 +5,7 @@ module counter
         output reg out
     );
 
-    wire [COUNT_BITS-1:0] counter = 'b0;
+    reg [COUNT_BITS-1:0] counter = 'b0;
 
     always @(posedge clk, posedge reset) begin
         if (reset) begin
