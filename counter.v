@@ -1,14 +1,14 @@
 module counter
     #(parameter COUNT_BITS=8, COUNT=250)
     (
-        input clk, rst,
+        input clk, reset,
         output reg out
     );
 
     wire [COUNT_BITS-1:0] counter = 'b0;
 
-    always @(posedge clk, posedge rst) begin
-        if (rst) begin
+    always @(posedge clk, posedge reset) begin
+        if (reset) begin
             out <= 1'b0;
             counter <= 'b0;
         end
