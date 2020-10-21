@@ -7,14 +7,14 @@ module sd_comm_fsm (clk, reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en);
                     STANDBY = 4'd4, TRANSFER = 4'd5, SENDING = 4'd6,
                     RECEIVING = 4'd7, PROGRAMMING = 4'd8, DISCONNECT = 4'd9;
 
-    always @(posedge clk, posedge resetn) begin
+    always @(posedge clk, posedge reset) begin
         if (reset) PS <= IDLE;
         else PS <= NS
     end
 
     always @(PS) begin
         {cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en} = 0;
-        case (PS)
+        case (PS) 
                 INACTIVE: PS <= INACTIVE;
                 IDLE: begin
                     // ACMD41

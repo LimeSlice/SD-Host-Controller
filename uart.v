@@ -1,5 +1,5 @@
 /**
-  * Assuming external clock at 6MHz
+  * Assuming external clock at 50MHz -- change BAUDRATE!!!!
   *
   * UART Specs:
   *     Baudrate:   9600 bps

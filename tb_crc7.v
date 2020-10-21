@@ -3,15 +3,15 @@ module tb_crc7;
 
     reg clk, reset;
     reg [39:0] data;
+    wire ready;
     wire [6:0] crc;
 
-    integer i;
-
-    crc7 uut ();
+    crc7 uut (.clk(clk), .reset(reset), 
+        .data_in(data), .crc_ready(ready), .crc(crc));
 
     task RESET;
         begin
-            $display("\n-----System Reset-----\n");
+            $display("\n-----Reset-----\n");
             reset = 1; #20;
             reset = 0; #20;
         end
@@ -24,48 +24,69 @@ module tb_crc7;
                 $display("[ERR] CRC incorrect (expected %b)", correct_crc);
                 $stop;
             end
+            else if (!ready) begin
+                $display("[ERR] CRC ready bit not set high");
+                $stop;
+            end
             else 
-                $display("!!! Successful code translation !!!")
+                $display("!!! Successful code translation !!!");
         end
     endtask
 
     always #10 clk = ~clk;
 
     initial begin
-        $monitor("data: %b, crc: %b, time: %0d", data, crc, $time);
+        $monitor("data: %b, index: %0d, time: %0d", uut.data, uut.index, $time);
         clk = 0;
         reset = 0;
         data = 0;
-        i = 0;
         #5; // Don't want everything changing on edge of clk
 
         RESET;
 
         $display("\n-----Testing CMD0-----\n");
 
-        data = 40'b0; #80;
+        data = 40'b0100000000000000000000000000000000000000;
+        RESET;
+        #800;
 
         CHECK_CRC(7'b1001010);
 
-        RESET;
-
         $display("\n-----TESTING CMD17-----\n");
 
-        data = 40'b0100010000000000000000000000000000000000; #80;
+        data = 40'b0101000100000000000000000000000000000000;
+        RESET;
+        #800;
 
         CHECK_CRC(7'b0101010);
 
-        RESET;
-
         $display("\n-----TESTING RESPONSE OF CMD17-----\n");
 
-        data = 40'b0100010000000000000000000000100100000000; #80;
+        data = 40'b0001000100000000000000000000100100000000; 
+        RESET;
+        #800;
 
         CHECK_CRC(7'b0110011);
 
         $finish(2);
     end
     
-
-
 endmodule
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
