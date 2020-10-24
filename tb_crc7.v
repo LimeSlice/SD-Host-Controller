@@ -6,8 +6,8 @@ module tb_crc7;
     wire ready;
     wire [6:0] crc;
 
-    crc7 uut (.clk(clk), .reset(reset), 
-        .data_in(data), .crc_ready(ready), .crc(crc));
+    crc7 #(40) uut (.clk(clk), .reset(reset), 
+        .load(load), .data_in(data), .crc_ready(ready), .crc(crc));
 
     task RESET;
         begin
@@ -46,6 +46,8 @@ module tb_crc7;
 
         $display("\n-----Testing CMD0-----\n");
 
+        load = 1; #20;
+        load = 0; #20;
         data = 40'b0100000000000000000000000000000000000000;
         RESET;
         #800;
@@ -54,6 +56,8 @@ module tb_crc7;
 
         $display("\n-----TESTING CMD17-----\n");
 
+        load = 1; #20;
+        load = 0; #20;
         data = 40'b0101000100000000000000000000000000000000;
         RESET;
         #800;
@@ -62,6 +66,8 @@ module tb_crc7;
 
         $display("\n-----TESTING RESPONSE OF CMD17-----\n");
 
+        load = 1; #20;
+        load = 0; #20;
         data = 40'b0001000100000000000000000000100100000000; 
         RESET;
         #800;

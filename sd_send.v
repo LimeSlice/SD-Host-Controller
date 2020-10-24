@@ -20,7 +20,7 @@ module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd
     assign cmd_token = {2'b01, cmd_content, cmd_crc, 1'b1};
 
     // module crc7 (clk, reset, data_in, crc_ready, crc);
-    crc7 crc_gen (.clk(ex_clk), .reset(reset), .load(crc_load), 
+    crc7 #(40) crc_gen (.clk(ex_clk), .reset(reset), .load(crc_load), 
         .data_in(cmd_token[47:8]), .crc_ready(crc_ready), .crc(cmd_crc));
 
     sd_cmd_tx transmitter (.clk(sd_clk), .reset(reset),
