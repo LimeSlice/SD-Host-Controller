@@ -1,11 +1,11 @@
 module counter
-    #(parameter COUNT_BITS=8, COUNT=250)
     (
         input clk, reset,
+        input [15:0] count,
         output reg out
     );
 
-    reg [COUNT_BITS-1:0] counter = 'b0;
+    reg [15:0] counter = 16'b0;
 
     always @(posedge clk, posedge reset) begin
         if (reset) begin

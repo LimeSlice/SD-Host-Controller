@@ -1,5 +1,5 @@
 module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd_dat);
-    input ex_clk, sd_clk, send_en, reset;
+    input ex_clk, sd_clk, reset, send_en;
     input [37:0] cmd_content;
     output sd_cmd, sending;
     output [3:0] sd_dat;

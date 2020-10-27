@@ -1,7 +1,7 @@
-module sd_receive (ex_clk, sd_clk, reset, en, R2_response, sd_cmd, response, crc_err);
-    input ex_clk, sd_clk, reset, en, R2_response, sd_cmd;
+module sd_receive (ex_clk, sd_clk, reset, receive_en, R2_response, sd_cmd, response, crc_err);
+    input ex_clk, sd_clk, reset, receive_en, R2_response, sd_cmd;
     output [126:0] response;
-    output reg crc_err;
+    output reg crc_err, sd_receive_finished;
 
     wire finished, crc_ready_40, crc_ready_120;
     wire [6:0] resp_crc, check_crc_40, check_crc_120;
@@ -31,18 +31,20 @@ module sd_receive (ex_clk, sd_clk, reset, en, R2_response, sd_cmd, response, crc
         else PS <= NS;
     end
 
-    always @(PS, en, finished, crc_ready_40, crc_ready_120) begin
+    always @(PS, receive_en, finished, crc_ready_40, crc_ready_120) begin
         crc_err = 0;
         case (PS)
             IDLE: begin
                 crc_load_40 = 1'b0;
                 crc_load_120 = 1'b0;
                 rx_en = 1'b0;
-                if (en) NS = RECEIVING;
+                sd_receive_finished = 1'b0;
+                if (receive_en) NS = RECEIVING;
                 else    NS = IDLE;
             end
             RECEIVING: begin
                 rx_en = 1'b1;
+                sd_receive_finished = 1'b0;
                 if (finished) begin
                     if (R2_response) begin
                         crc_load_40 = 1'b0;
@@ -57,6 +59,7 @@ module sd_receive (ex_clk, sd_clk, reset, en, R2_response, sd_cmd, response, crc
                 else begin
                     crc_load_40 = 1'b0;
                     crc_load_120 = 1'b0;
+                    sd_receive_finished = 1'b0;
                     NS = RECEIVING;
                 end
             end
@@ -64,6 +67,7 @@ module sd_receive (ex_clk, sd_clk, reset, en, R2_response, sd_cmd, response, crc
                 rx_en = 1'b0;
                 crc_load_40 = 1'b0;
                 crc_load_120 = 1'b0;
+                sd_receive_finished = 1'b0;
                 NS = CHECKING;
             end
             CHECKING: begin
@@ -73,13 +77,15 @@ module sd_receive (ex_clk, sd_clk, reset, en, R2_response, sd_cmd, response, crc
                 if (R2_response) begin
                     if (crc_ready_120) begin
                         if (check_crc_120 != rx_resp[6:0])
-                            crc_err = 1;
+                            crc_err = 1'b1;
                         else
-                            crc_err = 0;
+                            crc_err = 1'b0;
+                        sd_receive_finished = 1'b1;
                         NS = IDLE;
                     end
                     else begin
-                        crc_err = 0;
+                        sd_receive_finished = 1'b0;
+                        crc_err = 1'b0;
                         NS = CHECKING;
                     end
                 end
@@ -89,10 +95,12 @@ module sd_receive (ex_clk, sd_clk, reset, en, R2_response, sd_cmd, response, crc
                             crc_err = 1;
                         else 
                             crc_err = 0;
+                        sd_receive_finished = 1'b1;
                         NS = IDLE;
                     end
                     else begin
                         crc_err = 0;
+                        sd_receive_finished = 1'b0;
                         NS = CHECKING;
                     end
                 end
