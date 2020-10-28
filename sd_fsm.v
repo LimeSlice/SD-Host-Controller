@@ -204,7 +204,7 @@ always @(PS) begin
                 
                 // crc error in response
                 if (crc_response_err) begin
-                    // if error -> go to INACTIVE (temporary, need to update)
+                    // if error -> go to ERROR (temporary, need to update)
                     NS = ERROR;
                 end
                 
@@ -213,7 +213,7 @@ always @(PS) begin
                     
                     // cmd line not responding to CMD55 
                     if (response_48bit_command_index != CMD55) begin
-                        // go to INACTIVE (temporary, need to update)
+                        // go to ERROR (temporary, need to update)
                         NS = ERROR;
                     end
 
@@ -221,7 +221,7 @@ always @(PS) begin
                     else if ({response_48bit_card_status[27:9],
                               response_48bit_card_status[5]} == ~19'b0) begin
                         received_error = 1'b1;
-                        // if error -> go to INACTIVE (temporary, need to update)
+                        // if error -> go to ERROR (temporary, need to update)
                         NS = ERROR;
                     end
 
@@ -230,7 +230,7 @@ always @(PS) begin
                         NS = IDLE__ACMD41_SEND;
                     end
                     
-                    card_status_reg_in = response;
+                    card_status_reg_in = response_48bit_card_status;
                     card_status_reg_en = 1'b1;
                 end
             end
@@ -266,24 +266,19 @@ always @(PS) begin
                 
                 // crc error in response
                 if (crc_response_err) begin
-                    // if error -> go to INACTIVE (temporary, need to update)
+                    // if error -> go to ERROR (temporary, need to update)
                     NS = ERROR;
                 end
                 
                 // valid response
                 else begin
                     
-                    // cmd line not responding to CMD55 
-                    if (response_48bit_command_index != CMD55) begin
-                        // go to INACTIVE (temporary, need to update)
-                        NS = ERROR;
-                    end
 
                     // check status field
-                    else if ({response_48bit_card_status[27:9],
+                    if ({response_48bit_card_status[27:9],
                               response_48bit_card_status[5]} == ~19'b0) begin
                         received_error = 1'b1;
-                        // if error -> go to INACTIVE (temporary, need to update)
+                        // if error -> go to ERROR (temporary, need to update)
                         NS = ERROR;
                     end
 
@@ -292,8 +287,8 @@ always @(PS) begin
                         NS = IDLE__ACMD41_SEND;
                     end
                     
-                    card_status_reg_in = response;
-                    card_status_reg_en = 1'b1;
+                    ocr_in = response_48bit_card_status;
+                    ocr_en = 1'b1;
                 end
             end
 

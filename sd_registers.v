@@ -1,18 +1,18 @@
 // module sd_registers (
-//     clk, reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en,
-//     cid_in, csd_in, scr_in, ocr_in, rca_in, drs_in,
+//     clk, reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, stat_en,
+//     cid_in, csd_in, scr_in, ocr_in, stat_in, rca_in, drs_in,
 //     cid_out, csd_out, scr_out, ocr_out, rca_out, drs_out
 // );
 module sd_registers (
     input clk, reset,
-    input cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en,
+    input cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, stat_en
     input [127:0]  cid_in, csd_in,
     input [63:0]   scr_in, 
-    input [31:0]   ocr_in,
+    input [31:0]   ocr_in, stat_in,
     input [15:0]   rca_in, drs_in,
     output [127:0] cid_out, csd_out,
     output [63:0]  scr_out, 
-    output [31:0]  ocr_out,
+    output [31:0]  ocr_out, stat_out,
     output [15:0]  rca_out, drs_out
 );
 
@@ -34,6 +34,9 @@ module sd_registers (
     register #(64,0) SCR (clk, reset, scr_in, scr_en, scr_out);
 
     // Operation condition register
+    // default VDD voltage profile of host 3.2-3.4V
     register #(32,{9'b0,2'b11,21'b0}) OCR (clk, reset, ocr_in, ocr_en, ocr_out);
+
+    resgister #(32,0) STATUS (clk, reset, stat_in, stat_en, stat_out);
 
 endmodule
