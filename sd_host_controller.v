@@ -1,15 +1,19 @@
-module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat, sd_cmd, sd_cd, sd_wp);
+module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_pin, sd_cd_pin, sd_wp_pin);
     input ex_clk, ex_resetn, rx_pin;
     output tx_pin;
-    inout sd_cmd, sd_cd, sd_wp;
-    inout [3:0] sd_dat;
+    inout sd_cmd_pin, sd_cd_pin, sd_wp_pin;
+    inout [3:0] sd_dat_pin;
 
     // enables for inout ports
+    // sd_xx_pin = input
+    // sd_xx_out = output
     wire sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we;
-    assign sd_cmd = sd_cmd_we ? 1'bz : send_cmd;
-    assign sd_cd  = sd_cd_we  ? 1'bz : send_cd;
-    assign sd_wp  = sd_wp_we  ? 1'bz : send_wp;
-    assign sd_dat = sd_dat_we ? 4'bz : send_dat;
+    wire sd_cmd_out, sd_cd_out, sd_wp_out;
+    wire [3:0] sd_dat_out;
+    assign sd_cmd_pin = sd_cmd_we ? 1'bz : sd_cmd_out;
+    assign sd_cd_pin  = sd_cd_we  ? 1'bz : sd_cd_out;
+    assign sd_wp_pin  = sd_wp_we  ? 1'bz : sd_wp_out;
+    assign sd_dat_pin = sd_dat_we ? 4'bz : sd_dat_out;
 
     wire sd_clk, sd_reset, software_reset, sd_tx_en, uart_cmd_en;
     wire [5:0] uart_cmd;
@@ -24,7 +28,7 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat, sd_cmd, sd_
     wire [127:0] cid_in, csd_in, cid_out, csd_out;
 
     // sd_send
-    wire send_en, sending;
+    wire send_en, sd_cmd_sending;
     wire [37:0] send_cmd_content;
 
     // sd_receive
@@ -34,39 +38,49 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat, sd_cmd, sd_
     // clock divider for SD_CLK
     // based on TRAN_SPEED in CSD register
     counter clk_div (
+        // inputs
         ex_clk, ~ex_resetn | sd_reset, 
-        sd_clk_divider_count, 
+        sd_clk_divider_count,
+        // outputs 
         sd_clk
     );
 
     sd_registers registers (
-        ex_clk, ~ex_resetn | sd_reset,                       // inputs
+        // inputs
+        ex_clk, ~ex_resetn | sd_reset,                       
         cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en,
         cid_in, csd_in, scr_in, ocr_in, rca_in, drs_in,
-        cid_out, csd_out, scr_out, ocr_out, rca_out, drs_out // outputs
+        // outputs
+        cid_out, csd_out, scr_out, ocr_out, rca_out, drs_out
     );
 
     sd_send send (
-        ex_clk, sd_clk, ~ex_resetn | sd_reset, // inputs
+        // inputs
+        ex_clk, sd_clk, ~ex_resetn | sd_reset,
         send_en, send_cmd_content,
-        sd_cmd, sending, sd_dat                // outputs
+        // outputs
+        sd_cmd_out, sd_cmd_sending, sd_dat_out
     );
 
-    sd_receive   receive (
-        ex_clk, sd_clk, ~ex_resetn | sd_reset,           // inputs
-        receive_en, R2_response, sd_cmd, 
-        response, crc_response_err, sd_receive_finished  // outputs
+    sd_receive receive (
+        // inputs
+        ex_clk, sd_clk, ~ex_resetn | sd_reset,
+        receive_en, R2_response, sd_cmd_pin, 
+        // outputs
+        response, crc_response_err, sd_receive_finished
     );
 
     sd_fsm fsm (
-        ex_clk, ~ex_resetn, software_reset,                                 // inputs
-        uart_cmd_en, crc_response_err, sd_receive_finished
+        // inputs
+        ex_clk, ~ex_resetn, software_reset,
+        uart_cmd_en, crc_response_err, sd_receive_finished, sd_cmd_sending,
         cid_out, csd_out, response, 
         scr_out, 
         ocr_out,
         rca_out, drs_out,
         uart_cmd,
-        sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,  // outputs
+        // outputs
+        sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
         sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
         R2_response, 
         cid_in, csd_in,
@@ -78,10 +92,12 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat, sd_cmd, sd_
     );
 
     uart user_comm (
-        ex_clk, ~ex_resetn,                  // inputs
+        // inputs
+        ex_clk, ~ex_resetn,
         rx_pin, sd_tx_en, 
         sd_tx_data, 
-        tx_pin, software_reset, uart_cmd_en, // outputs 
+        // outputs
+        tx_pin, software_reset, uart_cmd_en,
         uart_cmd
     );
 
