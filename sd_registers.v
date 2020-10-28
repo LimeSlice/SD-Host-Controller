@@ -34,6 +34,6 @@ module sd_registers (
     register #(64,0) SCR (clk, reset, scr_in, scr_en, scr_out);
 
     // Operation condition register
-    register #(32,0) OCR (clk, reset, ocr_in, ocr_en, ocr_out);
+    register #(32,{9'b0,2'b11,21'b0}) OCR (clk, reset, ocr_in, ocr_en, ocr_out);
 
 endmodule

@@ -16,6 +16,7 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_
     assign sd_dat_pin = sd_dat_we ? 4'bz : sd_dat_out;
 
     wire sd_clk, sd_reset, software_reset, sd_tx_en, uart_cmd_en;
+    wire received_error;
     wire [5:0] uart_cmd;
     wire [7:0] sd_tx_data;
     wire [15:0] sd_clk_divider_count;
@@ -82,7 +83,7 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_
         // outputs
         sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
         sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
-        R2_response, 
+        R2_response, received_error,
         cid_in, csd_in,
         scr_in, 
         send_cmd_content,
