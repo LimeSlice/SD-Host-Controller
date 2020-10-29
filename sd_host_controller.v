@@ -19,13 +19,15 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_
     wire received_error;
     wire [5:0] uart_cmd;
     wire [7:0] sd_tx_data;
+
+    wire clk_div_cnt_gen_start, clk_div_cnt_gen_ok, clk_div_cnt_gen_err;
     wire [15:0] sd_clk_divider_count;
 
     // sd_registers
-    wire cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en;
-    wire [15:0] rca_in, drs_in, rca_out, drs_out;
+    wire cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, receive_status_en;
+    wire [15:0] rca_in, drs_in, rca_out, dsr_out;
     wire [31:0] ocr_in, ocr_out;
-    wire [63:0] scr_in, scr_out;
+    wire [63:0] scr_in, scr_out, receive_status_in, receive_status_out;
     wire [127:0] cid_in, csd_in, cid_out, csd_out;
 
     // sd_send
@@ -33,7 +35,8 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_
     wire [37:0] send_cmd_content;
 
     // sd_receive
-    wire receive_en, R2_response, crc_response_err, sd_receive_finished;
+    wire receive_en, R2_response, R3_response, crc_response_err, sd_receive_finished;
+    wire sd_receive_started;
     wire [126:0] response;
 
     // clock divider for SD_CLK
@@ -44,6 +47,15 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_
         sd_clk_divider_count,
         // outputs 
         sd_clk
+    );
+
+    clk_div_count_generator clk_div_cnt_gen (
+        // inputs
+        ex_clk, ~ex_resetn | sd_reset,
+        csd_out[103:96], clk_div_cnt_gen_start,
+        // outputs
+        clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+        sd_clk_divider_count
     );
 
     sd_registers registers (
@@ -66,37 +78,39 @@ module sd_host_controller(ex_clk, ex_resetn, rx_pin, tx_pin, sd_dat_pin, sd_cmd_
     sd_receive receive (
         // inputs
         ex_clk, sd_clk, ~ex_resetn | sd_reset,
-        receive_en, R2_response, sd_cmd_pin, 
+        receive_en, R2_response, R3_response, sd_cmd_pin, 
         // outputs
-        response, crc_response_err, sd_receive_finished
+        response, crc_response_err, sd_receive_finished, sd_receive_started
     );
 
     sd_fsm fsm (
         // inputs
-        ex_clk, ~ex_resetn, software_reset,
-        uart_cmd_en, crc_response_err, sd_receive_finished, sd_cmd_sending,
+        ex_clk, sd_clk, ~ex_resetn, software_reset,
+        uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
+        sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
         cid_out, csd_out, response, 
-        scr_out, 
+        scr_out, receive_status_out,
         ocr_out,
         rca_out, drs_out,
         uart_cmd,
         // outputs
         sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
         sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
-        R2_response, received_error,
+        R2_response, R3_response, received_error, receive_status_en, 
+        clk_div_cnt_gen_start,
         cid_in, csd_in,
-        scr_in, 
+        scr_in, receive_status_in,
         send_cmd_content,
         ocr_in,
-        rca_in, drs_in, sd_clk_divider_count,
+        rca_in, dsr_in, sd_clk_divider_count,
         sd_tx_data
     );
 
     uart user_comm (
         // inputs
         ex_clk, ~ex_resetn,
-        rx_pin, sd_tx_en, 
-        sd_tx_data, 
+        rx_pin, sd_tx_en, host_reset_clear,
+        sd_tx_data, cid_out,
         // outputs
         tx_pin, software_reset, uart_cmd_en,
         uart_cmd

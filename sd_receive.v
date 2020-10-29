@@ -1,7 +1,8 @@
-module sd_receive (ex_clk, sd_clk, reset, receive_en, R2_response, sd_cmd, response, crc_err);
-    input ex_clk, sd_clk, reset, receive_en, R2_response, sd_cmd;
-    output [126:0] response;
-    output reg crc_err, sd_receive_finished;
+module sd_receive (
+    input ex_clk, sd_clk, reset, receive_en, R2_response, R3_response, sd_cmd,
+    output [126:0] response,
+    output reg crc_err, sd_receive_finished, sd_receive_started
+);
 
     wire finished, crc_ready_40, crc_ready_120;
     wire [6:0] resp_crc, check_crc_40, check_crc_120;
@@ -24,7 +25,7 @@ module sd_receive (ex_clk, sd_clk, reset, receive_en, R2_response, sd_cmd, respo
 
     sd_resp_rx receiver (.clk(sd_clk), .reset(reset), .en(rx_en), 
         .R2_response(R2_response), .sd_cmd(sd_cmd), .response(rx_resp), 
-        .finished(finished));
+        .finished(finished), .started(sd_receive_started));
     
     always @(posedge sd_clk, posedge reset) begin
         if (reset) PS <= IDLE;
@@ -43,22 +44,34 @@ module sd_receive (ex_clk, sd_clk, reset, receive_en, R2_response, sd_cmd, respo
                 else    NS = IDLE;
             end
             RECEIVING: begin
-                rx_en = 1'b1;
-                sd_receive_finished = 1'b0;
                 if (finished) begin
                     if (R2_response) begin
                         crc_load_40 = 1'b0;
                         crc_load_120 = 1'b1;
+                        rx_en = 1'b0;
+                        sd_receive_finished = 1'b0;
+                        NS = LOAD;
+                    end
+                    // no checksum -- done
+                    else if (R3_response) begin
+                        crc_load_40 = 1'b0;
+                        crc_load_120 = 1'b0;
+                        rx_en = 1'b0;
+                        sd_receive_finished = 1'b1;
+                        NS = IDLE;
                     end
                     else begin
                         crc_load_40 = 1'b1;
                         crc_load_120 = 1'b0;
+                        rx_en = 1'b0;
+                        sd_receive_finished = 1'b0;
+                        NS = LOAD;
                     end
-                    NS = LOAD;
                 end
                 else begin
                     crc_load_40 = 1'b0;
                     crc_load_120 = 1'b0;
+                    rx_en = 1'b1;
                     sd_receive_finished = 1'b0;
                     NS = RECEIVING;
                 end

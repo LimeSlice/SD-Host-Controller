@@ -12,7 +12,7 @@ module counter
             out <= 1'b0;
             counter <= 'b0;
         end
-        else if (counter == COUNT) begin
+        else if (counter == count) begin
             out <= 1'b1;
             counter <= counter + 'b1;
         end

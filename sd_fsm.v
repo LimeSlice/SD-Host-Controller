@@ -1,27 +1,24 @@
 module sd_fsm (
-    input ex_clk, reset, software_reset, 
-    input uart_cmd_en, crc_response_err, sd_receive_finished, sd_cmd_sending
+    input ex_clk, sd_clk, reset, software_reset, 
+    input uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
+    input sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     input [127:0] cid_out, csd_out, 
     input [126:0] response, 
-    input [63:0]  scr_out, 
+    input [63:0]  scr_out, receive_status_out,
     input [31:0]  ocr_out,
-    input [15:0]  rca_out, drs_out,
+    input [15:0]  rca_out, dsr_out,
     input [5:0]   uart_cmd,
     output reg sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
     output reg sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
-    output reg R2_response, received_error, 
+    output reg R2_response, R3_response, received_error, receive_status_en, 
+    output reg clk_div_cnt_gen_start, host_reset_clear,
     output reg [127:0] cid_in, csd_in,
-    output reg [63:0]  scr_in, 
+    output reg [63:0]  scr_in, receive_status_in,
     output reg [37:0]  send_cmd_content,
     output reg [31:0]  ocr_in,
-    output reg [15:0]  rca_in, drs_in, sd_clk_divider_count,
+    output reg [15:0]  rca_in, dsr_in, sd_clk_divider_count,
     output reg [7:0]   sd_tx_data
 );
-
-// split response
-wire [5:0] response_48bit_command_index;
-wire [31:0] response_48bit_card_status
-assign {response_48bit_command_index, response_48bit_card_status} = response[125:88]
 
 reg [7:1] PS, NS;
 // parameter [4:1] INACTIVE = 4'd0, IDLE = 4'd1, READY = 4'd2,
@@ -32,83 +29,15 @@ reg [7:1] PS, NS;
 // Thinking the receive states (at least in data transfer mode) 
 // should be apart of the next "state"
 // **********************************************************************
-parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1},
+parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1}, 
+                 IDENT_MODE__CMD0_SEND = {4'd9,6'd2}, IDENT_MODE__CMD0_WAIT = {4'd9,6'd3},
+                 TRANS_MODE__CMD0_SEND = {4'd9,6'd4}, TRANS_MODE__CMD0_WAIT = {4'd9,6'd5}, 
+                 IDENT_MODE__CLK_ADJ = {4'd9,6'd6}, TRANS_MODE__CLK_ADJ = {4'd9,6'd7},
                  IDLE__CMD55_SEND = {4'd0,6'd0}, IDLE__CMD55_RECEIVE = {4'd0,6'd1},
                  IDLE__ACMD41_SEND = {4'd0,6'd2}, IDLE__ACMD41_RECEIVE = {4'd0,6'd3},
-                 READY__CMD0_SEND = {4'd1,6'd0}, 
                  READY__CMD2_SEND = {4'd1,6'd1}, READY__CMD2_RECEIVE = {4'd1,6'd2},
-                 IDENTIFICATION__CMD0_SEND = {4'd2,6'd0}, 
                  IDENTIFICATION__CMD3_SEND = {4'd2,6'd1}, IDENTIFICATION__CMD3_RECEIVE = {4'd2,6'd2},
-                 STANDBY__CMD0_SEND = {4'd3,6'd0}, 
-                 STANDBY__CMD3_SEND = {4'd3,6'd1}, STANDBY__CMD3_RECEIVE = {4'd3,6'd2},
-                 STANDBY__CMD4_SEND = {4'd3,6'd3}, STANDBY__CMD4_RECEIVE = {4'd3,6'd4},
-                 STANDBY__CMD7_SEND = {4'd3,6'd5}, STANDBY__CMD7_RECEIVE = {4'd3,6'd6},
-                 STANDBY__CMD9_SEND = {4'd3,6'd7}, STANDBY__CMD9_RECEIVE = {4'd3,6'd8},
-                 STANDBY__CMD10_SEND = {4'd3,6'd9}, STANDBY__CMD10_RECEIVE = {4'd3,6'd10};
-// TRANSFER__CMD0_SEND
-// TRANSFER__CMD6_SEND
-// TRANSFER__CMD6_RECEIVE
-// TRANSFER__CMD7_SEND
-// TRANSFER__CMD7_RECEIVE
-// TRANSFER__CMD15_SEND
-// TRANSFER__CMD16_SEND
-// TRANSFER__CMD16_RECEIVE
-// TRANSFER__CMD24_SEND
-// TRANSFER__CMD24_RECEIVE
-// TRANSFER__CMD25_SEND
-// TRANSFER__CMD25_RECEIVE
-// TRANSFER__CMD26_SEND
-// TRANSFER__CMD26_RECEIVE
-// TRANSFER__CMD27_SEND
-// TRANSFER__CMD27_RECEIVE
-// TRANSFER__CMD32_SEND
-// TRANSFER__CMD32_RECEIVE
-// TRANSFER__CMD33_SEND
-// TRANSFER__CMD33_RECEIVE
-// TRANSFER__CMD34_SEND
-// TRANSFER__CMD34_RECEIVE
-// TRANSFER__CMD35_SEND
-// TRANSFER__CMD35_RECEIVE
-// TRANSFER__CMD36_SEND
-// TRANSFER__CMD36_RECEIVE
-// TRANSFER__CMD37_SEND
-// TRANSFER__CMD37_RECEIVE
-// TRANSFER__CMD42_SEND
-// TRANSFER__CMD42_RECEIVE
-// TRANSFER__CMD55_SEND
-// TRANSFER__CMD55_RECEIVE
-// TRANSFER__CMD56_SEND
-// TRANSFER__CMD56_RECEIVE
-// TRANSFER__ACMD6_SEND
-// TRANSFER__ACMD6_RECEIVE
-// TRANSFER__ACMD13_SEND
-// TRANSFER__ACMD13_RECEIVE
-// TRANSFER__ACMD22_SEND
-// TRANSFER__ACMD22_RECEIVE
-// TRANSFER__ACMD23_SEND
-// TRANSFER__ACMD23_RECEIVE
-// TRANSFER__ACMD42_SEND
-// TRANSFER__ACMD42_RECEIVE
-// TRANSFER__ACMD51_SEND
-// TRANSFER__ACMD51_RECEIVE
-// SENDING__CMD0_SEND
-// SENDING__CMD7_SEND
-// SENDING__CMD7_RECEIVE
-// SENDING__CMD12_SEND
-// SENDING__CMD12_RECEIVE
-// SENDING__CMD15_SEND
-// RECEIVING__CMD0_SEND
-// RECEIVING__CMD12_SEND
-// RECEIVING__CMD12_RECEIVE
-// RECEIVING__CMD15_SEND
-// PROGRAMMING__CMD0_SEND
-// PROGRAMMING__CMD7_SEND
-// PROGRAMMING__CMD7_RECEIVE
-// PROGRAMMING__CMD15_SEND
-// DISCONNECT__CMD0_SEND
-// DISCONNECT__CMD7_SEND
-// DISCONNECT__CMD7_RECEIVE
-// DISCONNECT__CMD15_SEND
+                 STANDBY = {4'd3, 6'd0};
 
 parameter [6:1] CMD0   = 6'd0,   // GO_IDLE_STATE
                 CMD2   = 6'd2,   // ALL_SEND_CID
@@ -135,7 +64,7 @@ parameter [6:1] CMD0   = 6'd0,   // GO_IDLE_STATE
                 CMD38  = 6'd38,  // ERASE
                 CMD42  = 6'd42,  // LOCK_UNLOCK
                 CMD55  = 6'd55,  // APP_CMD
-                CMD56  = 6'd56,  // GEN_CMD
+                CMD56  = 6'd56;  // GEN_CMD
                 
 parameter [6:1] ACMD6  = 6'd6,  // SET_BUS_WIDTH
                 ACMD13 = 6'd13,  // SD_STATUS
@@ -145,44 +74,109 @@ parameter [6:1] ACMD6  = 6'd6,  // SET_BUS_WIDTH
                 ACMD42 = 6'd42, // SET_CLK_CARD_DETECT
                 ACMD51 = 6'd51; // SEND_SCR
 
-always @(posedge clk, posedge reset) begin
-    if (reset) PS <= IDLE;
-    else PS <= NS
+reg  [5:0] timeout_counter_in, clock_counter_in;
+wire [5:0] timeout_counter_out, clock_counter_out;
+// timeout clock cycle counter
+dflipflop #(6) timout_counter (sd_clk, reset, timeout_counter_in, timeout_counter_out);
+// clock cycle counter for sending / receiving data
+dflipflop #(6) clock_counter (sd_clk, reset, clock_counter_in, clock_counter_out);
+
+always @(posedge ex_clk, posedge reset) begin
+    if (reset) PS <= TRANS_MODE__CLK_ADJ;
+    else PS <= NS;
 end
 
 always @(PS) begin
     {sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-    sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
-    R2_response, received_error,
-    cid_in, csd_in,
-    scr_in, 
-    send_cmd_content,
-    ocr_in,
-    rca_in, drs_in, sd_clk_divider_count,
-    sd_tx_data} = 0;
+     sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
+     R2_response, R3_response, received_error, receive_status_en, 
+     clk_div_cnt_gen_start, host_reset_clear,
+     cid_in, csd_in,
+     scr_in, receive_status_in,
+     send_cmd_content,
+     ocr_in,
+     rca_in, dsr_in, sd_clk_divider_count,
+     sd_tx_data} = 0;
 
     case (PS) 
 
         INACTIVE: NS = INACTIVE;
 
         // send error message -- UART
-        // once done (for future), NS = {card_status_reg_out[12:9],6'd0}
+        // once done (for future), NS = {receive_status_out[12:9],6'd0}
         ERROR: begin
             NS = INACTIVE;
         end
 
-        IDLE__CMD55_SEND: begin
-            // SD_CLK = 400KHz for all of card-identfication-mode
-            // 50M / 400K = 125
-            sd_clk_divider_counter = 16'd125;
-
+        IDENT_MODE__CMD0_SEND: begin
             // CMD line in input mode
             sd_cmd_we = 1'b1;
             
-            // send CMD55 -- [37:32] command index, [31:16] RCA, [15:0] stuff bits
-            send_cmd_content = {CMD55, 16'h0000, 16'b0};
+            // send CMD0 -- [37:32] command index, [31:0] stuff bits
+            send_cmd_content = {CMD0, 32'h0};
             send_en = 1'b1;
+
+            NS = IDENT_MODE__CMD0_WAIT;
+        end
+
+        IDENT_MODE__CMD0_WAIT: begin
+
+            // wait 8 clock cycles before send next command
+            if (clock_counter_out == 6'd8) begin
+                NS = IDLE__CMD55_SEND;
+            end
+            else begin
+                clock_counter_in = clock_counter_out + 1'b1;
+                NS = IDENT_MODE__CMD0_WAIT;
+            end
+        end
+
+        TRANS_MODE__CMD0_SEND: begin
+             // CMD line in input mode
+            sd_cmd_we = 1'b1;
             
+            // send CMD0 -- [37:32] command index, [31:0] stuff bits
+            send_cmd_content = {CMD0, 32'h0};
+            send_en = 1'b1;
+
+            // adjust tran_speed in local CSD to adjust clock to 400KHz
+            csd_in[103:96] = 8'b0_1001_000;
+            csd_en = 1'b1;
+            clk_div_cnt_gen_start = 1'b1;
+
+            NS = TRANS_MODE__CLK_ADJ;
+        end
+
+        IDENT_MODE__CLK_ADJ: begin
+            clk_div_cnt_gen_start = 1'b1;
+            if (clk_div_cnt_gen_ok) NS = STANDBY;
+            else if (clk_div_cnt_gen_err) NS = ERROR;
+            else NS = IDENT_MODE__CLK_ADJ;
+        end
+
+        TRANS_MODE__CLK_ADJ: begin
+            clk_div_cnt_gen_start = 1'b1;
+            if (clk_div_cnt_gen_ok) NS = IDLE__CMD55_SEND;
+            else if (clk_div_cnt_gen_err) NS = ERROR;
+            else NS = TRANS_MODE__CLK_ADJ;
+        end
+
+        IDLE__CMD55_SEND: begin
+            // CMD line in input mode
+            sd_cmd_we = 1'b1;
+            
+            // check for software reset
+            if (software_reset) begin
+                host_reset_clear = 1'b1;
+                NS = IDENT_MODE__CMD0_SEND;
+            end
+            else begin
+                // send CMD55 -- [37:32] command index, [31:16] RCA, [15:0] stuff bits
+                send_cmd_content = {CMD55, 16'h0000, 16'b0};
+                send_en = 1'b1;
+                NS = IDLE__CMD55_RECEIVE;
+            end
+                        
             // initialized with default default card address -- RCA=0x0000
             rca_in = 16'h0000;
             rca_en  = 1'b1;
@@ -191,14 +185,9 @@ always @(PS) begin
             dsr_in = 16'h0404;
             dsr_en  = 1'b1;
             
-            NS = IDLE__CMD55_RECEIVE;
         end
 
         IDLE__CMD55_RECEIVE: begin
-            // SD_CLK = 400KHz for all of card-identfication-mode
-            // 50M / 400K = 125
-            sd_clk_divider_counter = 16'd125;
-
             // received response
             if (sd_receive_finished) begin
                 
@@ -211,42 +200,57 @@ always @(PS) begin
                 // valid response
                 else begin
                     
+                    // load register
+                    if (clock_counter_out == 6'd0) begin
+                        receive_status_in[37:0] = response[124:88];
+                        receive_status_en = 1'b1;
+                        clock_counter_in = 6'd1; // increment clock cycle once
+                        NS = IDLE__CMD55_RECEIVE;
+                    end
+                    
                     // cmd line not responding to CMD55 
-                    if (response_48bit_command_index != CMD55) begin
+                    else if (receive_status_out[37:32] != CMD55) begin
                         // go to ERROR (temporary, need to update)
                         NS = ERROR;
                     end
 
                     // check status field
-                    else if ({response_48bit_card_status[27:9],
-                              response_48bit_card_status[5]} == ~19'b0) begin
-                        received_error = 1'b1;
+                    else if ({receive_status_out[27:9],
+                              receive_status_out[5]} & ~19'b0 > 19'b0) begin
                         // if error -> go to ERROR (temporary, need to update)
                         NS = ERROR;
                     end
 
-                    // no errors
-                    else begin
+                    // no errors -- wait 8 clock cycles before send next command
+                    else if (clock_counter_out == 6'd8) begin
                         NS = IDLE__ACMD41_SEND;
                     end
                     
-                    card_status_reg_in = response_48bit_card_status;
-                    card_status_reg_en = 1'b1;
+                    // clock_counter 1-7 -- delay before next send 
+                    else begin
+                        clock_counter_in = clock_counter_out + 1'b1;
+                        NS = IDLE__CMD55_RECEIVE;
+                    end
                 end
             end
 
             // not finished receiving response
             else begin
-                NS = IDLE__CMD55_RECEIVE;
+                if (!sd_receive_started) begin
+                    // timeout occurred in receiving response
+                    if (timeout_counter_out == 6'd5) begin
+                        NS = ERROR;
+                    end 
+                    else begin
+                        timeout_counter_in = timeout_counter_out + 1'b1;
+                        NS = IDLE__CMD55_RECEIVE;
+                    end
+                end
             end
         end
 
         IDLE__ACMD41_SEND: begin
-            // SD_CLK = 400KHz for all of card-identfication-mode
-            // 50M / 400K = 125
-            sd_clk_divider_counter = 16'd125;
-            
-             // CMD line in input mode
+            // CMD line in input mode
             sd_cmd_we = 1'b1;
 
             // send ACMD41 -- OCR w/o busy bit
@@ -257,10 +261,79 @@ always @(PS) begin
         end
 
         IDLE__ACMD41_RECEIVE: begin
-            // SD_CLK = 400KHz for all of card-identfication-mode
-            // 50M / 400K = 125
-            sd_clk_divider_counter = 16'd125;
+
+            R3_response = 1'b1;
+
+            // received response
+            if (sd_receive_finished) begin
+                
+                // no crc -- no crc_response_err
+
+                // wait 8 clock cycles before send next command
+                if (clock_counter_out == 6'd8) begin
+                    NS = READY__CMD2_SEND;
+                end
+                // initial checks
+                else if (clock_counter_out == 6'd0) begin
+                    // check OCR reg
+                    // OCR[31] -- card is busy
+                    if (response[118]) begin
+                        NS = IDLE__CMD55_SEND;
+                    end
+                    // check SD voltage range to check compatibility
+                    else if (response[108:107] & 2'b11 == 2'b0) begin
+                        NS = INACTIVE;
+                    end
+                    // load receive_status reg
+                    else begin
+                        receive_status_in = response[124:119];
+                        receive_status_en = 1'b1;
+                        clock_counter_in = 6'd1;
+                        NS = IDLE__ACMD41_RECEIVE;
+                    end
+                end
+                // clock_counter 1-7 -- delay before next send
+                else begin
+                    clock_counter_in = clock_counter_out + 1'b1;
+                    NS = IDLE__ACMD41_RECEIVE;
+                end
+            end
+
+            // not finished receiving response
+            else begin
+                if (!sd_receive_started) begin
+                    // timeout occurred in receiving response
+                    if (timeout_counter_out == 6'd5) begin
+                        NS = ERROR;
+                    end 
+                    else begin
+                        timeout_counter_in = timeout_counter_out + 1'b1;
+                        NS = IDLE__ACMD41_RECEIVE;
+                    end
+                end
+            end
+        end
+
+        READY__CMD2_SEND: begin
+            // CMD line in input mode
+            sd_cmd_we = 1'b1;
             
+            // check for software reset
+            if (software_reset) begin
+                NS = IDENT_MODE__CMD0_SEND;
+            end
+            else begin
+                // send CMD2 -- [37:32] command index, [31:0] stuff bits
+                send_cmd_content = {CMD2, 32'b0};
+                send_en = 1'b1;
+                NS = READY__CMD2_RECEIVE;
+            end
+        end
+
+        READY__CMD2_RECEIVE: begin
+            
+            R2_response = 1'b1;
+
             // received response
             if (sd_receive_finished) begin
                 
@@ -272,190 +345,116 @@ always @(PS) begin
                 
                 // valid response
                 else begin
-                    
 
-                    // check status field
-                    if ({response_48bit_card_status[27:9],
-                              response_48bit_card_status[5]} == ~19'b0) begin
-                        received_error = 1'b1;
-                        // if error -> go to ERROR (temporary, need to update)
-                        NS = ERROR;
+                    // wait 8 clock cycles before send next command
+                    if (clock_counter_out == 6'd8) begin
+                        NS = IDENTIFICATION__CMD3_SEND;
                     end
 
-                    // no errors
+                    // load cid reg
+                    else if (clock_counter_out == 6'd0) begin
+                        cid_in = response[126:0];
+                        cid_en = 1'b1;
+                        clock_counter_in = 1'd1;
+                        NS = READY__CMD2_RECEIVE;
+                    end
+                    
+                    // clock_counter 1-7 -- delay before next send
                     else begin
-                        NS = IDLE__ACMD41_SEND;
+                        clock_counter_in = clock_counter_out + 1'b1;
+                        NS = READY__CMD2_RECEIVE;
                     end
-                    
-                    ocr_in = response_48bit_card_status;
-                    ocr_en = 1'b1;
                 end
             end
 
             // not finished receiving response
             else begin
-                NS = IDLE__CMD55_RECEIVE;
+                if (!sd_receive_started) begin
+                    // timeout occurred in receiving response
+                    if (timeout_counter_out == 6'd5) begin
+                        NS = ERROR;
+                    end 
+                    else begin
+                        timeout_counter_in = timeout_counter_out + 1'b1;
+                        NS = READY__CMD2_RECEIVE;
+                    end
+                end
             end
         end
 
+        IDENTIFICATION__CMD3_SEND: begin
+            // CMD line in input mode
+            sd_cmd_we = 1'b1;
             
-
-
-
-
-        READY: begin
-
-        // READY__CMD0_SEND
-        // READY__CMD2_SEND
-        // READY__CMD2_RECEIVE
-
-            // CMD2
-            NS = IDENTIFICATION;
+            // check for software reset
+            if (software_reset) begin
+                NS = IDENT_MODE__CMD0_SEND;
+            end
+            else begin
+                // send CMD3 -- [37:32] command index, [31:0] stuff bits
+                send_cmd_content = {CMD3, 32'b0};
+                send_en = 1'b1;
+                NS = IDENTIFICATION__CMD3_RECEIVE;
+            end
         end
-        IDENTIFICATION: begin
 
-        // IDENTIFICATION__CMD0_SEND
-        // IDENTIFICATION__CMD3_SEND
-        // IDENTIFICATION__CMD3_RECEIVE
+        IDENTIFICATION__CMD3_RECEIVE: begin
+            // received response
+            if (sd_receive_finished) begin
 
-            // CMD3
-            if (/*Wait for SD responds with new RCA*/)
-                NS = IDENTIFICATION;
-            else 
-                NS = STANDBY;
+                // crc error in response
+                if (crc_response_err) begin
+                    // if error -> go to ERROR (temporary, need to update)
+                    NS = ERROR;
+                end
+                
+                // valid response
+                else begin
+
+                    // load data -- R6 response
+                    // [124:119] command index
+                    // [118:103] new RCA
+                    // [102:87]  card status
+                    receive_status_in[37:32] = response[124:119];
+                    {receive_status_in[23:22],
+                     receive_status_in[19],
+                     receive_status_in[12:0]} = response[102:87];
+                    receive_status_en = 1'b1; 
+                    
+                    rca_in = response[118:103];
+                    rca_en = 1'b1;
+
+                    // check status field bits
+                    if (response[102:96] & ~7'b0 > 0) NS = ERROR;
+                    else begin
+                        // give default value of 25MHz
+                        csd_in[103:96] = 8'b0_0110_010;
+                        csd_en = 1'b1;
+                        clk_div_cnt_gen_start = 1'b1;
+                        NS = IDENT_MODE__CLK_ADJ;
+                    end
+                end
+            end
+
+            // not finished receiving response
+            else begin
+                if (!sd_receive_started) begin
+                    // timeout occurred in receiving response
+                    if (timeout_counter_out == 6'd5) begin
+                        NS = ERROR;
+                    end 
+                    else begin
+                        timeout_counter_in = timeout_counter_out + 1'b1;
+                        NS = IDENTIFICATION__CMD3_RECEIVE;
+                    end
+                end
+            end
         end
+
         STANDBY: begin
 
-        // STANDBY__CMD0_SEND
-        // STANDBY__CMD3_SEND
-        // STANDBY__CMD3_RECEIVE
-        // STANDBY__CMD4_SEND
-        // STANDBY__CMD4_RECEIVE
-        // STANDBY__CMD7_SEND
-        // STANDBY__CMD7_RECEIVE
-        // STANDBY__CMD9_SEND
-        // STANDBY__CMD9_RECEIVE
-        // STANDBY__CMD10_SEND
-        // STANDBY__CMD10_RECEIVE
-        // STANDBY__CMD15_SEND
-
-            // CMD4, 9, 10, 3
-            NS = STANDBY;
-            // CMD7
-            NS = TRANSFER;
         end
-        TRANSFER: begin
-        
-        // TRANSFER__CMD0_SEND
-        // TRANSFER__CMD6_SEND
-        // TRANSFER__CMD6_RECEIVE
-        // TRANSFER__CMD7_SEND
-        // TRANSFER__CMD7_RECEIVE
 
-        // TRANSFER__CMD15_SEND
-        // TRANSFER__CMD16_SEND
-        // TRANSFER__CMD16_RECEIVE
-
-        // TRANSFER__CMD24_SEND
-        // TRANSFER__CMD24_RECEIVE
-        // TRANSFER__CMD25_SEND
-        // TRANSFER__CMD25_RECEIVE
-        // TRANSFER__CMD26_SEND
-        // TRANSFER__CMD26_RECEIVE
-        // TRANSFER__CMD27_SEND
-        // TRANSFER__CMD27_RECEIVE
-        
-        // TRANSFER__CMD32_SEND
-        // TRANSFER__CMD32_RECEIVE
-        // TRANSFER__CMD33_SEND
-        // TRANSFER__CMD33_RECEIVE
-        // TRANSFER__CMD34_SEND
-        // TRANSFER__CMD34_RECEIVE
-        // TRANSFER__CMD35_SEND
-        // TRANSFER__CMD35_RECEIVE
-        // TRANSFER__CMD36_SEND
-        // TRANSFER__CMD36_RECEIVE
-        // TRANSFER__CMD37_SEND
-        // TRANSFER__CMD37_RECEIVE
-
-        // TRANSFER__CMD42_SEND
-        // TRANSFER__CMD42_RECEIVE
-
-        // TRANSFER__CMD55_SEND
-        // TRANSFER__CMD55_RECEIVE
-        // TRANSFER__CMD56_SEND
-        // TRANSFER__CMD56_RECEIVE
-        
-        // TRANSFER__ACMD6_SEND
-        // TRANSFER__ACMD6_RECEIVE
-        // TRANSFER__ACMD13_SEND
-        // TRANSFER__ACMD13_RECEIVE
-        // TRANSFER__ACMD22_SEND
-        // TRANSFER__ACMD22_RECEIVE
-        // TRANSFER__ACMD23_SEND
-        // TRANSFER__ACMD23_RECEIVE
-        // TRANSFER__ACMD42_SEND
-        // TRANSFER__ACMD42_RECEIVE
-        // TRANSFER__ACMD51_SEND
-        // TRANSFER__ACMD51_RECEIVE
-
-            // CMD7
-            NS = STANDBY;
-            // CMD16, 32-37, ACMD6, 23, 42
-            NS = TRANSFER;
-            // CMD24,25,26,27,42,56(w) 
-            NS = RECEIVE;
-            // CMD6,17,18,30,56(r), ACMD13,22,51
-            NS = SENDING;
-        end
-        SENDING: begin
-        
-        // SENDING__CMD0_SEND
-        // SENDING__CMD7_SEND
-        // SENDING__CMD7_RECEIVE
-        // SENDING__CMD12_SEND
-        // SENDING__CMD12_RECEIVE
-        // SENDING__CMD15_SEND
-
-            // CMD12 or "operation complete"
-            NS = TRANSFER;
-            // CMD7
-            NS = STANDBY;
-        end
-        RECEIVING: begin
-
-        // RECEIVING__CMD0_SEND
-        // RECEIVING__CMD12_SEND
-        // RECEIVING__CMD12_RECEIVE
-        // RECEIVING__CMD15_SEND
-
-            // CMD12 or "transfer end"
-            NS = PROGRAMMING;
-        end
-        PROGRAMMING: begin
-
-        // PROGRAMMING__CMD0_SEND
-        // PROGRAMMING__CMD7_SEND
-        // PROGRAMMING__CMD7_RECEIVE
-        // PROGRAMMING__CMD15_SEND
-
-            // "operation complete"
-            NS = TRANSFER;
-            // CMD7
-            NS = DISCONNECT;
-        end
-        DISCONNECT: begin
-
-        // DISCONNECT__CMD0_SEND
-        // DISCONNECT__CMD7_SEND
-        // DISCONNECT__CMD7_RECEIVE
-        // DISCONNECT__CMD15_SEND
-        
-            // "operation complete"
-            NS = STANDBY;
-            // CMD7
-            NS = PROGRAMMING;
-        end
         default: PS <= INACTIVE;
     endcase
 end
