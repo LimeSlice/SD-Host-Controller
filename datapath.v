@@ -61,7 +61,7 @@ module datapath(ex_clk, ex_reset);
 
     // When stopped, internal clock goes low (low-power state)
     // clk_ctrl_out[0] - internal clock enable
-    tribuffer_1bit internal_clk (
+    tribuffer_1bit intern_clk (
         .in(ex_clk),
         .en(clk_ctrl_out[0]),
         .out(internal_clk)

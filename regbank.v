@@ -23,10 +23,10 @@ module regbank (
     
     input [7:0]     tran_mode_in, blk_gap_ctrl_in, wake_ctrl_in, timeout_ctrl_in,
                     soft_rst_in, auto_cmd12_err_in, uart_tx_data_in, 
-                    uart_rx_data_in, uart_ctrl_status_in;
+                    uart_rx_data_in, uart_ctrl_status_in,
     output [7:0]    tran_mode_out, blk_gap_ctrl_out, wake_ctrl_out, 
                     timeout_ctrl_out, soft_rst_out, auto_cmd12_err_out,
-                    uart_tx_data_out, uart_rx_data_out, uart_ctrl_status_out;
+                    uart_tx_data_out, uart_rx_data_out, uart_ctrl_status_out
 );
 
     wire soft_reset_dat_line, soft_reset_cmd_line, soft_reset_all;
@@ -38,8 +38,8 @@ module regbank (
     // System Address Register (RW)
     // Contains system memory address for DMA transfer
     register #(32,0) sys_addr_reg (
-        .clock(clk),
-        .resetn(resetn),
+        .clk(clk),
+        .reset(resetn),
         .d(sys_addr_in),
         .en(sys_addr_en),
         .q(sys_addr_out)
@@ -62,7 +62,7 @@ module regbank (
 
     // Transfer Mode Register (RW)
     // Control Operation of data transfers
-    register #(32) tran_mode_reg
+    register #(8) tran_mode_reg
         (clk, resetn, tran_mode_in, tran_mode_en, tran_mode_out);
 
     // Command Register (RW)
@@ -145,7 +145,7 @@ module regbank (
         (clk, resetn, err_int_sig_en_in, err_int_sig_en_en, err_int_sig_en_out);
 
     // Auto CMD12 Error Status Register
-    register #(16) auto_cmd12_err_status_reg
+    register #(8) auto_cmd12_err_status_reg
         (clk, resetn, auto_cmd12_err_in, auto_cmd12_err_en, auto_cmd12_err_out);
 
     // Host Controller Version Register

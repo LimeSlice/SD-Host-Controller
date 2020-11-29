@@ -4,20 +4,21 @@ module clk_div_count_generator (clk, reset, tran_speed, start, ok, err, count);
     output ok, err;
     output [15:0] count;
 
-    reg [31:0] rate_unit, rate;
+    reg [31:0] rate_unit, rate, bigCount;
     wire [31:0] R; // don't know what it does...don't care
+	assign count = bigCount[15:0];
 
     divider gen (
         // inputs
         clk, reset, start, 
         32'd50_000_000, rate, 
         // outputs
-        count, R,
+        bigCount, R,
         ok, err
     );
 
     always @(tran_speed) begin
-        rate_unit = 10 ** (4 + $unsigned(tran_speed[2:0]));
+        rate_unit = 2 ** ((4 + $unsigned(tran_speed[2:0]))*3/10);
         case (tran_speed[6:3])
             4'h1: rate = 10 * rate_unit;
             4'h2: rate = 12 * rate_unit;

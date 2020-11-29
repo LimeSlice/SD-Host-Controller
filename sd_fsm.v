@@ -455,7 +455,7 @@ always @(PS) begin
 
         end
 
-        default: PS <= INACTIVE;
+        default: NS = INACTIVE;
     endcase
 end
 
