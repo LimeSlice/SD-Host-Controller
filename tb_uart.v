@@ -138,7 +138,8 @@ initial begin
 
         // $display("-----Testing Rx Transmission----\n");
 
-        data_in = 10'b1001101110;
+        data_in = $random;
+        data_in = {1'b1, data_in[8:1], 1'b0};
         for(i = 0; i < 10; i = i+1) begin
             rx_pin = data_in[i]; 
             UART_WAIT;
@@ -146,7 +147,8 @@ initial begin
         CHECK_RX_TRANSMISSION;
         CHECK_FSM_SORTING;
 
-        data_in = 10'b1000001000;
+        data_in = $random;
+        data_in = {1'b1, data_in[8:1], 1'b0};
         for (i = 0; i < 10; i = i+1) begin
             rx_pin = data_in[i]; 
             UART_WAIT;
@@ -154,7 +156,8 @@ initial begin
         CHECK_RX_TRANSMISSION;
         CHECK_FSM_SORTING;
 
-        data_in = 10'b1111100110;
+        data_in = $random;
+        data_in = {1'b1, data_in[8:1], 1'b0};
         for (i = 0; i < 10; i = i+1) begin
             rx_pin = data_in[i]; 
             UART_WAIT;
@@ -164,18 +167,18 @@ initial begin
 
         // $display("-----Testing Tx Transmission----\n");
 
-        tx_data = 8'b10001111; 
+        tx_data = $random; 
         tx_en = 1'b1; UART_WAIT;
         tx_en = 1'b0;
         CHECK_TX_TRANSMISSION;
 
-        tx_data = 8'b00111001; 
+        tx_data = $random; 
         tx_en = 1'b1; UART_WAIT;
         tx_en = 1'b0;
         CHECK_TX_TRANSMISSION;
     end
 
-    $stop;
+    $finish(2);
 
 end
 
