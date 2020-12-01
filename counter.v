@@ -10,11 +10,11 @@ module counter
     always @(posedge clk, posedge reset) begin
         if (reset) begin
             out <= 1'b0;
-            counter <= 'b0;
+            counter <= 'b1;
         end
         else if (counter == count) begin
             out <= 1'b1;
-            counter <= counter + 'b1;
+            counter <= 'b1;
         end
         else begin
             out <= 1'b0;

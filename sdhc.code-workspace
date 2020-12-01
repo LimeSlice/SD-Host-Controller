@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "..\\..\\Quartus Scripts"
 		}
 	],
 	"settings": {}

@@ -1,4 +1,4 @@
-module sd_host_controller (
+module sd_host_controller_small_clk_div (
     input ex_clk, ex_resetn, rx_pin,
     output tx_pin,
     inout sd_cmd_pin, sd_cd_pin, sd_wp_pin,
@@ -45,7 +45,7 @@ wire [126:0] response;
 counter clk_div (
     // inputs
     ex_clk, ~ex_resetn | sd_reset, 
-    sd_clk_divider_count,
+    (clk_div_cnt_gen_ok) ? sd_clk_divider_count : 2,
     // outputs 
     sd_clk
 );

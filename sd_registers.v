@@ -9,7 +9,7 @@ module sd_registers (
     input [127:0]  cid_in, csd_in,
     input [63:0]   scr_in, stat_in, 
     input [31:0]   ocr_in,
-    input [15:0]   rca_in, drs_in,
+    input [15:0]   rca_in, dsr_in,
     output [127:0] cid_out, csd_out,
     output [63:0]  scr_out, stat_out, 
     output [31:0]  ocr_out,

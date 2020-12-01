@@ -28,12 +28,12 @@ module uart_rx(
             // Process stop bit
             else if (index == 4'b1000 && pin == 1'b1) begin
                 ctrl_in_rx_contains_data <= 1'b1;
-                index <= index + 1'b1;
+                index <= 4'b1111;
                 data <= data;
             end
             // Preserve values when not receiving
             else begin
-                ctrl_in_rx_contains_data <= ctrl_out_rx_contains_data;
+                ctrl_in_rx_contains_data <= 1'b0;
                 index <= index;
                 data <= data;
             end

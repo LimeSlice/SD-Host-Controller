@@ -8,6 +8,7 @@ module sd_fsm (
     input [31:0]  ocr_out,
     input [15:0]  rca_out, dsr_out,
     input [5:0]   uart_cmd,
+    input [3:0]   host_cmd,
     output reg sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
     output reg sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
     output reg R2_response, R3_response, received_error, receive_status_en, 
@@ -83,7 +84,10 @@ dflipflop #(6) clock_counter (sd_clk, reset, clock_counter_in, clock_counter_out
 
 always @(posedge ex_clk, posedge reset) begin
     if (reset) PS <= TRANS_MODE__CLK_ADJ;
-    else PS <= NS;
+    case (host_cmd)
+        1: PS <= IDENT_MODE__CMD0_SEND;
+        default: PS <= NS;
+    endcase
 end
 
 always @(PS) begin
@@ -455,7 +459,7 @@ always @(PS) begin
 
         end
 
-        default: PS <= INACTIVE;
+        default: NS = INACTIVE;
     endcase
 end
 

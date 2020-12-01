@@ -27,7 +27,7 @@ module datapath(ex_clk, ex_reset);
                 uart_rx_data_out, uart_ctrl_status_in, uart_ctrl_status_out;
 
     regbank registers (
-        clk, ex_reset, 
+        ex_clk, ex_reset, 
         // Enables
         sys_addr_en, blk_size_en, blk_cnt_en, arg_en, 
         tran_mode_en, cmd_en, resp0_en, resp1_en, resp2_en, resp3_en, 
@@ -61,7 +61,7 @@ module datapath(ex_clk, ex_reset);
 
     // When stopped, internal clock goes low (low-power state)
     // clk_ctrl_out[0] - internal clock enable
-    tribuffer_1bit internal_clk (
+    tribuffer_1bit internal_clk_buf (
         .in(ex_clk),
         .en(clk_ctrl_out[0]),
         .out(internal_clk)

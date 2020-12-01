@@ -1,7 +1,7 @@
 module uart_tx(
     input clk, reset, ctrl_out_tx_en, ctrl_out_tx_sending,
     input [7:0] data,
-    output reg pin, ctrl_in_tx_en, ctrl_in_tx_sending
+    output reg pin, ctrl_in_tx_sending
 );
 
     reg [3:0] index;
@@ -11,7 +11,6 @@ module uart_tx(
             pin <= 1'b1;
             index <= 4'b0;
             ctrl_in_tx_sending <= 1'b0;
-            ctrl_in_tx_en <= 1'b0;
         end
         else begin
             if (ctrl_out_tx_sending) begin
@@ -26,7 +25,6 @@ module uart_tx(
                     pin <= 1'b1;
                     index <= index;
                     ctrl_in_tx_sending <= 1'b0;
-                    ctrl_in_tx_en <= 1'b0;
                 end
             end
             // Send start bit
@@ -34,14 +32,12 @@ module uart_tx(
                 pin <= 1'b0;
                 index <= 4'b0;
                 ctrl_in_tx_sending <= 1'b1;
-                ctrl_in_tx_en <= 1'b1;
             end
             // Keep pin bit high
             else begin
                 pin <= 1'b1;
                 index <= index;
                 ctrl_in_tx_sending <= 1'b0;
-                ctrl_in_tx_en <= 1'b0;
             end
         end
     end

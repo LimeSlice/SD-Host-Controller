@@ -9,6 +9,7 @@ module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd
 
     wire [6:0] cmd_crc;
     wire [47:0] cmd_token;
+	 wire crc_ready;
 
     parameter [2:1] IDLE = 2'b00, LOAD = 2'b01, PREP = 2'b10, SENDING = 2'b11;
 

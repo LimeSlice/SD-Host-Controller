@@ -7,7 +7,7 @@ module crc7
     output [6:0] crc;
     
     reg [WIDTH+6:0] data;
-    reg [6:0] index, i;
+    reg [6:0] index;
     wire [7:0] divisor;
 
     // generator polynomial: G(x) = x^7 + x^3 + 1
