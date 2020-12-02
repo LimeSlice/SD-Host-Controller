@@ -31,7 +31,7 @@ wire [63:0] scr_in, scr_out, receive_status_in, receive_status_out;
 wire [127:0] cid_in, csd_in, cid_out, csd_out;
 
 // sd_send
-wire send_en, sd_finished;
+wire send_en, sd_sending, sd_finished;
 wire [37:0] send_cmd_content;
 
 // sd_receive
@@ -81,7 +81,8 @@ sd_send send (
     ex_clk, sd_clk, ~ex_resetn | sd_reset,
     send_en, send_cmd_content,
     // outputs
-    sd_cmd_out, sd_cmd_we, sd_dat_we, sd_finished,
+    sd_cmd_out, sd_sending,
+    sd_cmd_we, sd_dat_we, sd_finished,
     sd_dat_out
 );
 
@@ -97,7 +98,7 @@ sd_fsm fsm (
     // inputs
     ex_clk, sd_clk, ~ex_resetn, software_reset, sd_cd_pin, sd_wp_pin,
     uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
-    sd_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    sd_sending, sd_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     cid_out, csd_out, response, 
     scr_out, receive_status_out,
     ocr_out,

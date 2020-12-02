@@ -29,6 +29,10 @@ sd_host_controller uut (
 
 always #5 clk = ~clk;
 
+always @(posedge clk) begin
+    if (uut.fsm.PS == 10'h240) $stop;
+end
+
 task RESETN; 
     begin
         $display("-----System Reset-----\n");
@@ -39,7 +43,7 @@ endtask
 
 task SD_CLK_PERIOD;
     begin
-        #104160;    // 10 *  
+        #2520;
     end
 endtask
 
@@ -62,6 +66,8 @@ initial begin
         #10;
     end
 
+    $display("Clock divider has generated w/o CD @ time = %0d", $time);
+
     // check if system starts to propogate without CARD DETECT
     if (uut.fsm.PS != 10'h247) begin
         $display("Propogated states without a CARD DETECT\n");
@@ -75,6 +81,8 @@ initial begin
         #10;
     end
 
+    $display("Clock divider has generated w/ CD @ time = %0d", $time);
+
     #10; // change for FSM state takes 1 cycle
 
     // check if system starts to propogate with CARD DETECT
@@ -82,6 +90,33 @@ initial begin
         $display("Did not propogated states with CARD DETECT\n");
         $stop;
     end
+
+    // brief pause until it starts to send
+    while (!uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD sending @ time = %0d", $time);
+
+    // wait while sd sending data
+    while (uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD done sending @ time = %0d", $time);
+
+    // loop goes 1 ex_clk cycle past after finished receiving
+    // wait 2 cycles to test timeout
+    SD_CLK_PERIOD; // 1 sd_clk cycle
+
+    if (uut.fsm.timeout_counter_out != 1) begin
+        $display("Did not increment timeout counter\n");
+        $stop;
+    end
+
+    #2510; // 1 sd_clk cycle - 1 ex_clk cycle 
+
+    $display("Starting CMD55 response @ time = %0d", $time);
 
     // CRC7 calculator: http://www.ghsi.de/pages/subpages/Online%20CRC%20Calculation/
     // { start bit, transmission bit, 6 bits CMD_INDEX, 32 bits card status, 7 bits CRC7, end bit}
@@ -94,6 +129,12 @@ initial begin
         cmd_en = 1'b1;
         SD_CLK_PERIOD;
     end
+
+    $display("SD received CMD55 response @ time = %0d", $time);
+
+    #1000000;
+
+    $stop;
 
 end
 

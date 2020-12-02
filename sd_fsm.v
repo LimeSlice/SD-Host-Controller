@@ -1,7 +1,7 @@
 module sd_fsm (
     input ex_clk, sd_clk, reset, software_reset, sd_cd_pin, sd_wp_pin,
     input uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
-    input sd_send_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    input sd_sending, sd_send_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     input [127:0] cid_out, csd_out, 
     input [126:0] response, 
     input [63:0]  scr_out, receive_status_out,
@@ -34,8 +34,9 @@ parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1},
                  IDENT_MODE__CMD0_SEND = {4'd9,6'd2}, IDENT_MODE__CMD0_WAIT = {4'd9,6'd3},
                  TRANS_MODE__CMD0_SEND = {4'd9,6'd4}, TRANS_MODE__CMD0_WAIT = {4'd9,6'd5}, 
                  IDENT_MODE__CLK_ADJ = {4'd9,6'd6}, TRANS_MODE__CLK_ADJ = {4'd9,6'd7},
-                 IDLE__CMD55_SEND = {4'd0,6'd0}, IDLE__CMD55_RECEIVE = {4'd0,6'd1},
+                 IDLE__CMD55_SEND = {4'd0,6'd0}, IDLE__CMD55_RECEIVE = {4'd0,6'd1}, 
                  IDLE__ACMD41_SEND = {4'd0,6'd2}, IDLE__ACMD41_RECEIVE = {4'd0,6'd3},
+                 IDLE__CMD55_WAIT = {4'd0,6'd4}, IDLE__ACMD41_WAIT = {4'd0,6'd5},
                  READY__CMD2_SEND = {4'd1,6'd1}, READY__CMD2_RECEIVE = {4'd1,6'd2},
                  IDENTIFICATION__CMD3_SEND = {4'd2,6'd1}, IDENTIFICATION__CMD3_RECEIVE = {4'd2,6'd2},
                  STANDBY = {4'd3, 6'd0};
@@ -88,7 +89,8 @@ always @(posedge ex_clk, posedge reset) begin
 end
 
 always @(PS, software_reset, uart_cmd_en, crc_response_err, sd_receive_finished, 
-			sd_send_finished, sd_receive_started, clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
+			sd_sending, sd_send_finished, sd_receive_started, 
+            clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
 			cid_out, csd_out, response, scr_out, receive_status_out, ocr_out,
 			rca_out, dsr_out, uart_cmd, host_cmd, sd_cd_pin, sd_wp_pin, 
 			clock_counter_out, timeout_counter_out) 
@@ -169,11 +171,16 @@ begin
                 host_reset_clear = 1'b1;
                 NS = IDENT_MODE__CMD0_SEND;
             end
+            
+            else if (sd_sending) begin
+                NS = IDLE__CMD55_WAIT;
+            end
+
             else begin
                 // send CMD55 -- [37:32] command index, [31:16] RCA, [15:0] stuff bits
                 send_cmd_content = {CMD55, 16'h0000, 16'b0};
                 send_en = 1'b1;
-                NS = IDLE__CMD55_RECEIVE;
+                NS = IDLE__CMD55_SEND;
             end
                         
             // initialized with default default card address -- RCA=0x0000
@@ -182,8 +189,17 @@ begin
             
             // default DSR w/ lowest speed, highest driving current capability            
             dsr_in = 16'h0404;
-            dsr_en  = 1'b1;
-            
+            dsr_en  = 1'b1; 
+        end
+
+        IDLE__CMD55_WAIT: begin
+            if (sd_send_finished) begin
+                // enable receiver to receive
+                NS = IDLE__CMD55_RECEIVE;
+            end
+            else begin
+                NS = IDLE__CMD55_WAIT;
+            end
         end
 
         IDLE__CMD55_RECEIVE: begin
@@ -233,21 +249,21 @@ begin
                 end
             end
 
-            // not finished sending
-            else if (!sd_send_finished) begin
-                NS = IDLE__CMD55_RECEIVE;
-            end
-
             // not finished receiving response
             else begin
-                 // timeout occurred in receiving response
-					  if (timeout_counter_out == 6'd5) begin
-							NS = ERROR;
-					  end 
-					  else begin
-							timeout_counter_in = timeout_counter_out + 1'b1;
-							NS = IDLE__CMD55_RECEIVE;
-					  end
+                // received response
+                if (sd_receive_started) begin
+                    timeout_counter_in = 6'd0;
+                    NS = IDLE__CMD55_RECEIVE;
+                end
+                // timeout occurred in receiving response
+                else if (timeout_counter_out == 6'd5) begin
+                    NS = ERROR;
+                end 
+                else begin
+                    timeout_counter_in = timeout_counter_out + 1'b1;
+                    NS = IDLE__CMD55_RECEIVE;
+                end
             end
         end
 
