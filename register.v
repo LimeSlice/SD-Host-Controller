@@ -1,5 +1,6 @@
 module register
-    #(parameter WIDTH=32, RST_VAL=0)
+    #(parameter WIDTH=32, 
+		parameter [WIDTH-1:0] RST_VAL=0)
     (clk, reset, d, en, q);
 	 input clk, reset, en;
      input [WIDTH-1:0] d;
@@ -14,4 +15,5 @@ module register
 			else    q <= q;
         end
 	end
+	
 endmodule

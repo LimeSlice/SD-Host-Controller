@@ -17,7 +17,7 @@ module sd_registers (
 );
 
 // Card identification number
-register #(128,0) CID (clk, reset, cid_in, cid_en, cid_out);
+register #(128,128'b0) CID (clk, reset, cid_in, cid_en, cid_out);
 
 // Relative card address; local address of a card
 // Reset = 0x0000
@@ -44,6 +44,6 @@ register OCR (clk, reset, ocr_in, ocr_en, ocr_out);
 // Response status
 // [31:0]  card status
 // [37:32] command_index (not all responses contain -- if none 4'b1111)
-resgister #(64,0) STATUS (clk, reset, stat_in, stat_en, stat_out);
+register #(64,0) STATUS (clk, reset, stat_in, stat_en, stat_out);
 
 endmodule

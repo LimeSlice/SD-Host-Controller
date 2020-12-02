@@ -12,17 +12,17 @@ module crc7
 
     // generator polynomial: G(x) = x^7 + x^3 + 1
     assign divisor = 8'b10001001;
-    assign crc = data[7:0];
+    assign crc = data[6:0];
 
     always @(posedge clk, posedge reset) begin
         if (reset) begin
             crc_ready <= 1'b0;
-            index     <= WIDTH + 7'd6;
+            index     <= WIDTH[6:0] + 7'd6;
             data      <= 0;
         end
         else if (load) begin
             crc_ready <= 1'b0;
-            index     <= WIDTH + 7'd6;
+            index     <= WIDTH[6:0] + 7'd6;
             data <= {data_in, 7'b0};
         end
         else begin

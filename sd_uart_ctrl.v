@@ -4,7 +4,7 @@ module sd_uart_ctrl(
     input [127:0] cid_reg_out,
     output reg sd_tx_en, uart_cmd_en,
     output [5:0] uart_cmd,
-    output reg [7:0] sd_tx_data,
+    output reg [7:0] sd_tx_data
 );
 
 reg send_bit_count_en;

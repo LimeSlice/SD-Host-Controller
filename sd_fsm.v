@@ -1,5 +1,5 @@
 module sd_fsm (
-    input ex_clk, sd_clk, reset, software_reset, 
+    input ex_clk, sd_clk, reset, software_reset, sd_cd_pin, sd_wp_pin,
     input uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
     input sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     input [127:0] cid_out, csd_out, 
@@ -10,18 +10,18 @@ module sd_fsm (
     input [5:0]   uart_cmd,
     input [3:0]   host_cmd,
     output reg sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-    output reg sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
+    output reg sd_cmd_we, sd_dat_we, sd_tx_en, receive_en, 
     output reg R2_response, R3_response, received_error, receive_status_en, 
     output reg clk_div_cnt_gen_start, host_reset_clear,
     output reg [127:0] cid_in, csd_in,
     output reg [63:0]  scr_in, receive_status_in,
     output reg [37:0]  send_cmd_content,
     output reg [31:0]  ocr_in,
-    output reg [15:0]  rca_in, dsr_in, sd_clk_divider_count,
+    output reg [15:0]  rca_in, dsr_in,
     output reg [7:0]   sd_tx_data
 );
 
-reg [7:1] PS, NS;
+reg [10:1] PS, NS;
 // parameter [4:1] INACTIVE = 4'd0, IDLE = 4'd1, READY = 4'd2,
 //                 IDENTIFICATION = 4'd3, STANDBY = 4'd4, TRANSFER = 4'd5, 
 //                 SENDING = 4'd6, RECEIVING = 4'd7, PROGRAMMING = 4'd8, 
@@ -83,24 +83,28 @@ dflipflop #(6) timout_counter (sd_clk, reset, timeout_counter_in, timeout_counte
 dflipflop #(6) clock_counter (sd_clk, reset, clock_counter_in, clock_counter_out);
 
 always @(posedge ex_clk, posedge reset) begin
-    if (reset) PS <= TRANS_MODE__CLK_ADJ;
-    case (host_cmd)
-        1: PS <= IDENT_MODE__CMD0_SEND;
-        default: PS <= NS;
-    endcase
+    if (reset)  PS <= TRANS_MODE__CLK_ADJ;
+    else        PS <= NS;
 end
 
-always @(PS) begin
-    {sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-     sd_cmd_we, sd_dat_we, sd_cd_we, sd_wp_we, sd_tx_en, receive_en, 
-     R2_response, R3_response, received_error, receive_status_en, 
-     clk_div_cnt_gen_start, host_reset_clear,
-     cid_in, csd_in,
-     scr_in, receive_status_in,
-     send_cmd_content,
-     ocr_in,
-     rca_in, dsr_in, sd_clk_divider_count,
-     sd_tx_data} = 0;
+always @(PS, software_reset, uart_cmd_en, crc_response_err, sd_receive_finished, 
+			sd_receive_started, sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
+			cid_out, csd_out, response, scr_out, receive_status_out, ocr_out,
+			rca_out, dsr_out, uart_cmd, host_cmd, sd_cd_pin, sd_wp_pin, 
+			clock_counter_out, timeout_counter_out) 
+begin
+	{	sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
+		sd_cmd_we, sd_dat_we, sd_tx_en, receive_en, 
+		R2_response, R3_response, received_error, receive_status_en, 
+		clk_div_cnt_gen_start, host_reset_clear,
+		cid_in, csd_in,
+		scr_in, receive_status_in,
+		send_cmd_content,
+		ocr_in,
+		rca_in, dsr_in,
+		sd_tx_data,
+		timeout_counter_in, clock_counter_in
+	  } = 0;
 
     case (PS) 
 
@@ -160,7 +164,7 @@ always @(PS) begin
 
         TRANS_MODE__CLK_ADJ: begin
             clk_div_cnt_gen_start = 1'b1;
-            if (clk_div_cnt_gen_ok) NS = IDLE__CMD55_SEND;
+            if (clk_div_cnt_gen_ok && sd_cd_pin) NS = IDLE__CMD55_SEND;
             else if (clk_div_cnt_gen_err) NS = ERROR;
             else NS = TRANS_MODE__CLK_ADJ;
         end
@@ -240,16 +244,14 @@ always @(PS) begin
 
             // not finished receiving response
             else begin
-                if (!sd_receive_started) begin
-                    // timeout occurred in receiving response
-                    if (timeout_counter_out == 6'd5) begin
-                        NS = ERROR;
-                    end 
-                    else begin
-                        timeout_counter_in = timeout_counter_out + 1'b1;
-                        NS = IDLE__CMD55_RECEIVE;
-                    end
-                end
+                 // timeout occurred in receiving response
+					  if (timeout_counter_out == 6'd5) begin
+							NS = ERROR;
+					  end 
+					  else begin
+							timeout_counter_in = timeout_counter_out + 1'b1;
+							NS = IDLE__CMD55_RECEIVE;
+					  end
             end
         end
 
@@ -305,16 +307,14 @@ always @(PS) begin
 
             // not finished receiving response
             else begin
-                if (!sd_receive_started) begin
-                    // timeout occurred in receiving response
-                    if (timeout_counter_out == 6'd5) begin
-                        NS = ERROR;
-                    end 
-                    else begin
-                        timeout_counter_in = timeout_counter_out + 1'b1;
-                        NS = IDLE__ACMD41_RECEIVE;
-                    end
-                end
+                 // timeout occurred in receiving response
+					  if (timeout_counter_out == 6'd5) begin
+							NS = ERROR;
+					  end 
+					  else begin
+							timeout_counter_in = timeout_counter_out + 1'b1;
+							NS = IDLE__ACMD41_RECEIVE;
+					  end
             end
         end
 
@@ -373,16 +373,14 @@ always @(PS) begin
 
             // not finished receiving response
             else begin
-                if (!sd_receive_started) begin
-                    // timeout occurred in receiving response
-                    if (timeout_counter_out == 6'd5) begin
-                        NS = ERROR;
-                    end 
-                    else begin
-                        timeout_counter_in = timeout_counter_out + 1'b1;
-                        NS = READY__CMD2_RECEIVE;
-                    end
-                end
+                // timeout occurred in receiving response
+					 if (timeout_counter_out == 6'd5) begin
+					     NS = ERROR;
+					 end 
+					 else begin
+					     timeout_counter_in = timeout_counter_out + 1'b1;
+						  NS = READY__CMD2_RECEIVE;
+					 end
             end
         end
 
@@ -442,21 +440,19 @@ always @(PS) begin
 
             // not finished receiving response
             else begin
-                if (!sd_receive_started) begin
-                    // timeout occurred in receiving response
-                    if (timeout_counter_out == 6'd5) begin
-                        NS = ERROR;
-                    end 
-                    else begin
-                        timeout_counter_in = timeout_counter_out + 1'b1;
-                        NS = IDENTIFICATION__CMD3_RECEIVE;
-                    end
-                end
+					  // timeout occurred in receiving response
+					  if (timeout_counter_out == 6'd5) begin
+							NS = ERROR;
+					  end 
+					  else begin
+							timeout_counter_in = timeout_counter_out + 1'b1;
+							NS = IDENTIFICATION__CMD3_RECEIVE;
+					  end
             end
         end
 
         STANDBY: begin
-
+            NS = STANDBY;
         end
 
         default: NS = INACTIVE;

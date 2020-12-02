@@ -1,7 +1,8 @@
 module sd_receive (
     input ex_clk, sd_clk, reset, receive_en, R2_response, R3_response, sd_cmd,
     output [126:0] response,
-    output reg crc_err, sd_receive_finished, sd_receive_started
+    output sd_receive_started,
+    output reg crc_err, sd_receive_finished 
 );
 
     wire finished, crc_ready_40, crc_ready_120;
@@ -32,7 +33,10 @@ module sd_receive (
         else PS <= NS;
     end
 
-    always @(PS, receive_en, finished, crc_ready_40, crc_ready_120) begin
+    always @(PS, receive_en, finished, crc_ready_40, crc_ready_120, 
+				 R2_response, R3_response, check_crc_120, rx_resp, 
+				 crc_ready_40, check_crc_40) 
+	 begin
         crc_err = 0;
         case (PS)
             IDLE: begin

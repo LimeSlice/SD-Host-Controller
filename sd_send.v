@@ -3,6 +3,9 @@ module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd
     input [37:0] cmd_content;
     output sd_cmd, sending;
     output [3:0] sd_dat;
+	 
+	 // not currently writing to sd_dat
+	 assign sd_dat = 4'b0;
     
     reg crc_load, tx_en;
     reg [2:1] PS, NS;
@@ -33,7 +36,7 @@ module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd
     end
     
     always @(PS, send_en, crc_ready, sending) begin
-        {crc_load} = 0;
+        {crc_load, tx_en} = 0;
         case (PS)
             IDLE: begin
                 if (send_en) begin

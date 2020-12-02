@@ -48,7 +48,7 @@ module regbank (
     // Block Size Register (RW)
     // Used to configure number of bytes in a data block
     register #(16,0) blk_size_reg 
-        (clk, resetn, blk_size_in, blk_size_en, blk_size_out);
+        (clk, ~ex_resetn, blk_size_in, blk_size_en, blk_size_out);
 
     // Block Counter Register (RW)
     // Used to configure number of data blocks
