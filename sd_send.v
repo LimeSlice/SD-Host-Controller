@@ -1,34 +1,37 @@
-module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd_dat);
-    input ex_clk, sd_clk, reset, send_en;
-    input [37:0] cmd_content;
-    output sd_cmd, sending;
-    output [3:0] sd_dat;
+module sd_send (
+    input ex_clk, sd_clk, reset, send_en,
+    input [37:0] cmd_content,
+    output sd_cmd,
+    output reg sd_cmd_we, sd_dat_we, finished,
+    output [3:0] sd_dat
+);	 
+    // not currently writing to sd_dat
+    assign sd_dat = 4'b0;
 	 
-	 // not currently writing to sd_dat
-	 assign sd_dat = 4'b0;
-    
-    reg crc_load, tx_en;
-    reg [2:1] PS, NS;
-
-    wire [6:0] cmd_crc;
-    wire [47:0] cmd_token;
-	 wire crc_ready;
-
-    parameter [2:1] IDLE = 2'b00, LOAD = 2'b01, PREP = 2'b10, SENDING = 2'b11;
-
     // cmd_token[47]    = 0 (start bit)
     // cmd_token[46]    = 1 (transmitter bit: '1'= host command)
     // cmd_token[45:9]  = command content: command and address info
     // cmd_token[8:1]   = CRC checksum
     // cmd_token[0]     = 1 (end bit)
-    assign cmd_token = {2'b01, cmd_content, cmd_crc, 1'b1};
+	 wire [47:0] cmd_content_out;
+	 
+    reg crc_load;
+    reg [2:1] PS, NS;
 
+    wire [6:0] cmd_crc;
+	 wire crc_ready, sending;
+
+    parameter [2:1] IDLE = 2'b00, LOAD = 2'b01, PREP = 2'b10, SENDING = 2'b11;
+
+	 // preserve cmd_content coming in
+	 register #(48,0) cmd_content_reg (ex_clk, reset, cmd_content, send_en, cmd_content_out);
+	 
     // module crc7 (clk, reset, data_in, crc_ready, crc);
     crc7 #(40) crc_gen (.clk(ex_clk), .reset(reset), .load(crc_load), 
-        .data_in(cmd_token[47:8]), .crc_ready(crc_ready), .crc(cmd_crc));
+        .data_in({1'b0, 1'b1, cmd_content_out}), .crc_ready(crc_ready), .crc(cmd_crc));
 
     sd_cmd_tx transmitter (.clk(sd_clk), .reset(reset),
-        .en(tx_en), .sending(sending), .cmd(cmd_token), .sd_cmd(sd_cmd));
+        .en(sd_cmd_we), .sending(sending), .cmd({1'b0, 1'b1, cmd_content_out, cmd_crc, 1'b1}), .sd_cmd(sd_cmd));
 
     always @(posedge sd_clk, posedge reset) begin
         if (reset) PS <= IDLE;
@@ -36,7 +39,7 @@ module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd
     end
     
     always @(PS, send_en, crc_ready, sending) begin
-        {crc_load, tx_en} = 0;
+        {crc_load, sd_cmd_we, sd_dat_we, finished} = 0;
         case (PS)
             IDLE: begin
                 if (send_en) begin
@@ -56,7 +59,8 @@ module sd_send (ex_clk, sd_clk, reset, send_en, cmd_content, sending, sd_cmd, sd
             end
             SENDING: begin
                if (sending) begin
-                   tx_en = 1'b1;
+                   finished = 1'b1;
+                   sd_cmd_we = 1'b1;
                    NS = SENDING;
                end
                else NS = IDLE;

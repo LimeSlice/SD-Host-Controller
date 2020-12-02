@@ -13,12 +13,12 @@ module counter
             counter <= 1'b0;
         end
         else if (counter == count) begin
-            out <= 1'b1;
+            out <= ~out;
             counter <= 1'b0;
         end
         else begin
-            out <= 1'b0;
-            counter <= counter + 1'b0;
+            out <= out;
+            counter <= counter + 1'b1;
         end
     end
 

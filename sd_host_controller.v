@@ -9,11 +9,10 @@ module sd_host_controller (
 // enables for inout ports
 // sd_xx_pin = input
 // sd_xx_out = output
-wire sd_cmd_we, sd_dat_we;
-wire sd_cmd_out;
+wire sd_cmd_we, sd_dat_we, sd_cmd_out;
 wire [3:0] sd_dat_out;
-assign sd_cmd_pin = sd_cmd_we ? 1'bz : sd_cmd_out;
-assign sd_dat_pin = sd_dat_we ? 4'bz : sd_dat_out;
+assign sd_cmd_pin = sd_cmd_we ? sd_cmd_out : 1'bz;
+assign sd_dat_pin = sd_dat_we ? sd_dat_out: 4'bz;
 
 wire sd_clk, sd_reset, software_reset, sd_tx_en, uart_cmd_en, host_reset_clear;
 wire received_error;
@@ -22,7 +21,7 @@ wire [5:0] uart_cmd;
 wire [7:0] sd_tx_data;
 
 wire clk_div_cnt_gen_start, clk_div_cnt_gen_ok, clk_div_cnt_gen_err;
-wire [15:0] sd_clk_divider_count;
+wire [16:0] sd_clk_divider_count;
 
 // sd_registers
 wire cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, receive_status_en;
@@ -32,7 +31,7 @@ wire [63:0] scr_in, scr_out, receive_status_in, receive_status_out;
 wire [127:0] cid_in, csd_in, cid_out, csd_out;
 
 // sd_send
-wire send_en, sd_cmd_sending;
+wire send_en, sd_finished;
 wire [37:0] send_cmd_content;
 
 // sd_receive
@@ -48,7 +47,7 @@ wire [7:0] uart_rx_data, uart_ctrl;
 counter clk_div (
     // inputs
     ex_clk, ~ex_resetn | sd_reset, 
-    (clk_div_cnt_gen_ok) ? sd_clk_divider_count : 16'd2,
+    (sd_clk_divider_count[16]) ? sd_clk_divider_count[15:0] : 16'd2,
     // outputs 
     sd_clk
 );
@@ -82,7 +81,8 @@ sd_send send (
     ex_clk, sd_clk, ~ex_resetn | sd_reset,
     send_en, send_cmd_content,
     // outputs
-    sd_cmd_out, sd_cmd_sending, sd_dat_out
+    sd_cmd_out, sd_cmd_we, sd_dat_we, sd_finished,
+    sd_dat_out
 );
 
 sd_receive receive (
@@ -97,7 +97,7 @@ sd_fsm fsm (
     // inputs
     ex_clk, sd_clk, ~ex_resetn, software_reset, sd_cd_pin, sd_wp_pin,
     uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
-    sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    sd_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     cid_out, csd_out, response, 
     scr_out, receive_status_out,
     ocr_out,
@@ -106,7 +106,7 @@ sd_fsm fsm (
     host_cmd,
     // outputs
     sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-    sd_cmd_we, sd_dat_we, sd_tx_en, receive_en, 
+    sd_tx_en, receive_en, 
     R2_response, R3_response, received_error, receive_status_en, 
     clk_div_cnt_gen_start, host_reset_clear,
     cid_in, csd_in,

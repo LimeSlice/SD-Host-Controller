@@ -1,7 +1,7 @@
 module sd_fsm (
     input ex_clk, sd_clk, reset, software_reset, sd_cd_pin, sd_wp_pin,
     input uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
-    input sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    input sd_send_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     input [127:0] cid_out, csd_out, 
     input [126:0] response, 
     input [63:0]  scr_out, receive_status_out,
@@ -10,7 +10,7 @@ module sd_fsm (
     input [5:0]   uart_cmd,
     input [3:0]   host_cmd,
     output reg sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-    output reg sd_cmd_we, sd_dat_we, sd_tx_en, receive_en, 
+    output reg sd_tx_en, receive_en, 
     output reg R2_response, R3_response, received_error, receive_status_en, 
     output reg clk_div_cnt_gen_start, host_reset_clear,
     output reg [127:0] cid_in, csd_in,
@@ -88,13 +88,13 @@ always @(posedge ex_clk, posedge reset) begin
 end
 
 always @(PS, software_reset, uart_cmd_en, crc_response_err, sd_receive_finished, 
-			sd_receive_started, sd_cmd_sending, clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
+			sd_send_finished, sd_receive_started, clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
 			cid_out, csd_out, response, scr_out, receive_status_out, ocr_out,
 			rca_out, dsr_out, uart_cmd, host_cmd, sd_cd_pin, sd_wp_pin, 
 			clock_counter_out, timeout_counter_out) 
 begin
 	{	sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-		sd_cmd_we, sd_dat_we, sd_tx_en, receive_en, 
+		sd_tx_en, receive_en, 
 		R2_response, R3_response, received_error, receive_status_en, 
 		clk_div_cnt_gen_start, host_reset_clear,
 		cid_in, csd_in,
@@ -117,9 +117,6 @@ begin
         end
 
         IDENT_MODE__CMD0_SEND: begin
-            // CMD line in input mode
-            sd_cmd_we = 1'b1;
-            
             // send CMD0 -- [37:32] command index, [31:0] stuff bits
             send_cmd_content = {CMD0, 32'h0};
             send_en = 1'b1;
@@ -140,9 +137,6 @@ begin
         end
 
         TRANS_MODE__CMD0_SEND: begin
-             // CMD line in input mode
-            sd_cmd_we = 1'b1;
-            
             // send CMD0 -- [37:32] command index, [31:0] stuff bits
             send_cmd_content = {CMD0, 32'h0};
             send_en = 1'b1;
@@ -170,9 +164,6 @@ begin
         end
 
         IDLE__CMD55_SEND: begin
-            // CMD line in input mode
-            sd_cmd_we = 1'b1;
-            
             // check for software reset
             if (software_reset) begin
                 host_reset_clear = 1'b1;
@@ -242,6 +233,11 @@ begin
                 end
             end
 
+            // not finished sending
+            else if (!sd_send_finished) begin
+                NS = IDLE__CMD55_RECEIVE;
+            end
+
             // not finished receiving response
             else begin
                  // timeout occurred in receiving response
@@ -256,9 +252,6 @@ begin
         end
 
         IDLE__ACMD41_SEND: begin
-            // CMD line in input mode
-            sd_cmd_we = 1'b1;
-
             // send ACMD41 -- OCR w/o busy bit
             send_cmd_content = {1'b0, ocr_out[30:0]};
             send_en = 1'b1;
@@ -319,9 +312,6 @@ begin
         end
 
         READY__CMD2_SEND: begin
-            // CMD line in input mode
-            sd_cmd_we = 1'b1;
-            
             // check for software reset
             if (software_reset) begin
                 NS = IDENT_MODE__CMD0_SEND;
@@ -385,9 +375,6 @@ begin
         end
 
         IDENTIFICATION__CMD3_SEND: begin
-            // CMD line in input mode
-            sd_cmd_we = 1'b1;
-            
             // check for software reset
             if (software_reset) begin
                 NS = IDENT_MODE__CMD0_SEND;

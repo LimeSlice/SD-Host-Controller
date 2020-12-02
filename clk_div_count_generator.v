@@ -2,16 +2,17 @@ module clk_div_count_generator (
     input clk, reset, start,
     input [7:0] tran_speed,
     output ok, err,
-    output [15:0] count
+    output [16:0] count
 );
 
 reg [31:0] rate;
 wire [31:0] R; // don't know what it does...don't care
 
 wire [31:0] _count;
-assign count = _count[15:0];
 
 initial rate = 32'b0;
+
+register #(17,0) count_reg (clk, reset, {1'b1, _count[15:0]}, ok, count);
 
 divider gen (
     // inputs
