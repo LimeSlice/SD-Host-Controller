@@ -21,7 +21,7 @@ wire [5:0] uart_cmd;
 wire [7:0] sd_tx_data;
 
 wire clk_div_cnt_gen_start, clk_div_cnt_gen_ok, clk_div_cnt_gen_err;
-wire [16:0] sd_clk_divider_count;
+wire [15:0] sd_clk_divider_count;
 
 // sd_registers
 wire cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, receive_status_en;
@@ -46,8 +46,8 @@ wire [7:0] uart_rx_data, uart_ctrl;
 // based on TRAN_SPEED in CSD register
 counter clk_div (
     // inputs
-    ex_clk, ~ex_resetn | sd_reset, 
-    (sd_clk_divider_count[16]) ? sd_clk_divider_count[15:0] : 16'd2,
+    ex_clk, ~ex_resetn | sd_reset | clk_div_reset, 
+    sd_clk_divider_count,
     // outputs 
     sd_clk
 );
@@ -57,7 +57,7 @@ clk_div_count_generator clk_div_cnt_gen (
     ex_clk, ~ex_resetn | sd_reset, clk_div_cnt_gen_start,
     csd_out[103:96],
     // outputs
-    clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    clk_div_cnt_gen_ok, clk_div_cnt_gen_err, clk_div_reset,
     sd_clk_divider_count
 );
 

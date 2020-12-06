@@ -13,6 +13,8 @@ assign sd_cmd_pin = cmd_en ? cmd_pin : 1'bz;
 assign sd_dat_pin = dat_en ? dat_pin : 4'bz;
 
 // Helper registers / variables
+reg [135:0] R2_response;
+reg [126:0] cid;
 reg [47:0] R1_response, R3_response;
 reg [31:0] card_status, ocr;
 reg [6:0] crc7;
@@ -34,17 +36,142 @@ always @(posedge clk) begin
 end
 
 task RESETN; 
-    begin
-        $display("-----System Reset-----\n");
-        resetn = 0; #10;
-        resetn = 1; #10;
-    end
+begin
+    $display("-----System Reset-----\n");
+    resetn = 0; #10;
+    resetn = 1; #10;
+end
 endtask
 
 task SD_CLK_PERIOD;
-    begin
-        #2520;
+begin
+    #2520;
+end
+endtask
+
+task CMD55;
+begin
+    // brief pause until it starts to send
+    while (!uut.send.sending) begin
+        #10;
     end
+
+    $display("SD sending CMD55 @ time = %0d", $time);
+
+    // wait while sd sending data
+    while (uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD done sending @ time = %0d", $time);
+
+    // loop goes 1 ex_clk cycle past after finished receiving
+    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
+
+    $display("Starting CMD55 response @ time = %0d", $time);
+
+    // CRC7 calculator: http://www.ghsi.de/pages/subpages/Online%20CRC%20Calculation/
+    // { start bit, transmission bit, 6 bits CMD_INDEX, 32 bits card status, 7 bits CRC7, end bit}
+    card_status = 32'b0;
+    crc7 = 7'h78;
+    cmd_en = 1'b1;
+    R1_response = {1'b0, 1'b0, 6'd55, card_status, crc7, 1'b1};
+
+    for (i = 47; i >= 0; i = i - 1) begin
+        cmd_pin = R1_response[i]; 
+        SD_CLK_PERIOD;
+    end
+
+    SD_CLK_PERIOD;
+
+    $display("SD received CMD55 response @ time = %0d", $time);
+
+    cmd_en = 1'b0; SD_CLK_PERIOD;
+end
+endtask
+
+task ACMD41;
+begin
+    // brief pause until it starts to send
+    while (!uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD sending ACMD41 @ time = %0d", $time);
+
+    while (uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD done sending @ time = %0d", $time);
+
+    // loop goes 1 ex_clk cycle past after finished receiving
+    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
+
+    $display("Starting ACMD41 response @ time = %0d", $time);
+
+    // OCR[31] - busy flag
+    // OCR defines what voltages ranges SD card can handle
+    ocr = {1'b0, 31'b1};
+    cmd_en = 1'b1;
+    R3_response = {1'b0, 1'b0, 6'b1, ocr, 7'b1, 1'b1};
+
+    for (i = 47; i >= 0; i = i - 1) begin
+        cmd_pin = R3_response[i];
+        SD_CLK_PERIOD;
+    end
+
+    SD_CLK_PERIOD;
+
+    $display("SD received ACMD41 response @ time = %0d", $time);
+
+    cmd_en = 1'b0; SD_CLK_PERIOD;   
+end
+endtask
+
+task CMD2;
+begin
+    // brief pause until it starts to send
+    while (!uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD sending CMD2 @ time = %0d", $time);
+
+    while (uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD done sending @ time = %0d", $time);
+
+    // loop goes 1 ex_clk cycle past after finished receiving
+    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
+
+    $display("Starting CMD2 response @ time = %0d", $time);
+
+    // cid is info about the SD card. random values can be used, but internal
+    // CRC must be valid
+    crc7 = 6'h25;
+    cid = {120'hAFE53C7AB12900000ECD, crc7, 1'b1};
+    R2_response = {1'b0, 1'b0, 6'b1, cid, 1'b1};
+
+    for (i = 47; i >= 0; i = i - 1) begin
+        cmd_pin = R2_response[i];
+        SD_CLK_PERIOD;
+    end
+
+    SD_CLK_PERIOD;
+
+    $display("SD received CMD2 response @ time = %0d", $time);
+
+    cmd_en = 1'b0; SD_CLK_PERIOD; 
+end
+endtask
+
+task CMD3;
+begin
+    
+end
 endtask
 
 initial begin
@@ -91,82 +218,17 @@ initial begin
         $stop;
     end
 
-    // brief pause until it starts to send
-    while (!uut.send.sending) begin
-        #10;
-    end
+    CMD55;
 
-    $display("SD sending CMD55 @ time = %0d", $time);
+    ACMD41;
 
-    // wait while sd sending data
-    while (uut.send.sending) begin
-        #10;
-    end
+    CMD2;
 
-    $display("SD done sending @ time = %0d", $time);
+    CMD3;    
 
-    // loop goes 1 ex_clk cycle past after finished receiving
-    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
-
-    $display("Starting CMD55 response @ time = %0d", $time);
-
-    // CRC7 calculator: http://www.ghsi.de/pages/subpages/Online%20CRC%20Calculation/
-    // { start bit, transmission bit, 6 bits CMD_INDEX, 32 bits card status, 7 bits CRC7, end bit}
-    card_status = 32'b0;
-    crc7 = 7'h78;
-    cmd_en = 1'b1;
-    R1_response = {1'b0, 1'b0, 6'd55, card_status, crc7, 1'b1};
-
-    for (i = 47; i >= 0; i = i - 1) begin
-        cmd_pin = R1_response[i]; 
-        SD_CLK_PERIOD;
-    end
-
-    SD_CLK_PERIOD;
-
-    $display("SD received CMD55 response @ time = %0d", $time);
-
-    cmd_en = 1'b0; SD_CLK_PERIOD;
-
-    // brief pause until it starts to send
-    while (!uut.send.sending) begin
-        #10;
-    end
-
-    $display("SD sending ACMD41 @ time = %0d", $time);
-
-    while (uut.send.sending) begin
-        #10;
-    end
-
-    $display("SD done sending @ time = %0d", $time);
-
-    // loop goes 1 ex_clk cycle past after finished receiving
-    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
-
-    $display("Starting ACMD41 response @ time = %0d", $time);
-
-    // OCR[31] - busy flag
-    // OCR defines what voltages ranges SD card can handle
-    ocr = {1'b0, 31'b1};
-    cmd_en = 1'b1;
-    R3_response = {1'b0, 1'b0, 6'b1, ocr, 7'b1, 1'b1};
-
-    for (i = 47; i >= 0; i = i - 1) begin
-        cmd_pin = R3_response[i];
-        SD_CLK_PERIOD;
-    end
-
-    SD_CLK_PERIOD;
-
-    $display("SD received ACMD41 response @ time = %0d", $time);
-
-    cmd_en = 1'b0; SD_CLK_PERIOD;
-
-    #1000000;
+    #10000;
 
     $stop;
-
 end
 
 endmodule

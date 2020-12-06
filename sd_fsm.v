@@ -38,8 +38,10 @@ parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1},
                  IDLE__ACMD41_SEND = {4'd0,6'd2}, IDLE__ACMD41_RECEIVE = {4'd0,6'd3},
                  IDLE__CMD55_WAIT = {4'd0,6'd4}, IDLE__ACMD41_WAIT = {4'd0,6'd5},
                  IDLE__CMD55_PROC = {4'd0,6'd6}, IDLE__ACMD41_PROC = {4'd0,6'd7},
-                 READY__CMD2_SEND = {4'd1,6'd1}, READY__CMD2_RECEIVE = {4'd1,6'd2},
-                 IDENTIFICATION__CMD3_SEND = {4'd2,6'd1}, IDENTIFICATION__CMD3_RECEIVE = {4'd2,6'd2},
+                 READY__CMD2_SEND = {4'd1,6'd0}, READY__CMD2_RECEIVE = {4'd1,6'd1},
+                 READY__CMD2_WAIT = {4'd1,6'd2}, READY__CMD2_PROC = {4'd1,6'd3},
+                 IDENTIFICATION__CMD3_SEND = {4'd2,6'd0}, IDENTIFICATION__CMD3_RECEIVE = {4'd2,6'd1},
+                 IDENTIFICATION__CMD3_WAIT = {4'd2,6'd2}, IDENTIFICATION__CMD3_PROC = {4'd2,6'd3},
                  STANDBY = {4'd3, 6'd0};
 
 parameter [6:1] CMD0   = 6'd0,   // GO_IDLE_STATE
@@ -294,15 +296,12 @@ begin
         end
 
         IDLE__ACMD41_RECEIVE: begin
-
             R3_response = 1'b1;
 
             // received response
             if (sd_receive_finished) begin
-                
                 // no crc -- no crc_response_err
                 NS = IDLE__ACMD41_PROC;
-                
             end
 
             // not finished receiving response
@@ -359,11 +358,24 @@ begin
             if (software_reset) begin
                 NS = IDENT_MODE__CMD0_SEND;
             end
+            else if (sd_sending) begin
+                NS = READY__CMD2_WAIT;
+            end
+            // send ACMD41 -- OCR w/o busy bit
             else begin
                 // send CMD2 -- [37:32] command index, [31:0] stuff bits
                 send_cmd_content = {CMD2, 32'b0};
-                send_en = 1'b1;
+                NS = READY__CMD2_SEND; 
+            end
+        end
+
+        READY__CMD2_WAIT: begin
+            if (sd_send_finished) begin
+                receive_en = 1'b1;
                 NS = READY__CMD2_RECEIVE;
+            end
+            else begin
+                NS = READY__CMD2_WAIT;
             end
         end
 
@@ -373,47 +385,50 @@ begin
 
             // received response
             if (sd_receive_finished) begin
-                
                 // crc error in response
                 if (crc_response_err) begin
                     // if error -> go to ERROR (temporary, need to update)
                     NS = ERROR;
                 end
-                
-                // valid response
                 else begin
-
-                    // wait 8 clock cycles before send next command
-                    if (clock_counter_out == 6'd8) begin
-                        NS = IDENTIFICATION__CMD3_SEND;
-                    end
-
-                    // load cid reg
-                    else if (clock_counter_out == 6'd0) begin
-                        cid_in = response[126:0];
-                        cid_en = 1'b1;
-                        clock_counter_in = 1'd1;
-                        NS = READY__CMD2_RECEIVE;
-                    end
-                    
-                    // clock_counter 1-7 -- delay before next send
-                    else begin
-                        clock_counter_in = clock_counter_out + 1'b1;
-                        NS = READY__CMD2_RECEIVE;
-                    end
+                    NS = READY__CMD2_PROC;
                 end
             end
 
             // not finished receiving response
             else begin
+                // received response
+                if (sd_receive_started) begin
+                    timeout_counter_in = 6'd0;
+                    NS = READY__CMD2_RECEIVE;
+                end
                 // timeout occurred in receiving response
-					 if (timeout_counter_out == 6'd5) begin
-					     NS = ERROR;
-					 end 
-					 else begin
-					     timeout_counter_in = timeout_counter_out + 1'b1;
-						  NS = READY__CMD2_RECEIVE;
-					 end
+                else if (timeout_counter_out == 6'd5) begin
+                    NS = ERROR;
+                end 
+                else begin
+                    timeout_counter_in = timeout_counter_out + 1'b1;
+                    NS = READY__CMD2_RECEIVE;
+                end
+            end
+        end
+
+        READY__CMD2_PROC: begin
+            // wait 8 clock cycles before send next command
+            if (clock_counter_out == 6'd8) begin
+                NS = IDENTIFICATION__CMD3_SEND;
+            end
+            // initial checks
+            else if (clock_counter_out == 6'd0) begin
+                cid_in = response;
+                cid_en = 1'b1;
+                clock_counter_in = 6'd1;
+                NS = READY__CMD2_PROC;
+            end
+            // clock_counter 1-7 -- delay before next send
+            else begin
+                clock_counter_in = clock_counter_out + 1'b1;
+                NS = READY__CMD2_PROC;
             end
         end
 
@@ -422,62 +437,95 @@ begin
             if (software_reset) begin
                 NS = IDENT_MODE__CMD0_SEND;
             end
+            else if (sd_sending) begin
+                NS = IDENTIFICATION__CMD3_WAIT;
+            end
+            // send ACMD41 -- OCR w/o busy bit
             else begin
                 // send CMD3 -- [37:32] command index, [31:0] stuff bits
                 send_cmd_content = {CMD3, 32'b0};
                 send_en = 1'b1;
+                NS = IDENTIFICATION__CMD3_SEND; 
+            end
+        end
+
+        IDENTIFICATION__CMD3_WAIT: begin
+            if (sd_send_finished) begin
+                receive_en = 1'b1;
                 NS = IDENTIFICATION__CMD3_RECEIVE;
+            end
+            else begin
+                NS = IDENTIFICATION__CMD3_WAIT;
             end
         end
 
         IDENTIFICATION__CMD3_RECEIVE: begin
             // received response
             if (sd_receive_finished) begin
-
                 // crc error in response
                 if (crc_response_err) begin
                     // if error -> go to ERROR (temporary, need to update)
                     NS = ERROR;
                 end
-                
-                // valid response
                 else begin
-
-                    // load data -- R6 response
-                    // [124:119] command index
-                    // [118:103] new RCA
-                    // [102:87]  card status
-                    receive_status_in[37:32] = response[124:119];
-                    {receive_status_in[23:22],
-                     receive_status_in[19],
-                     receive_status_in[12:0]} = response[102:87];
-                    receive_status_en = 1'b1; 
-                    
-                    rca_in = response[118:103];
-                    rca_en = 1'b1;
-
-                    // check status field bits
-                    if (response[102:96] & ~7'b0 > 0) NS = ERROR;
-                    else begin
-                        // give default value of 25MHz
-                        csd_in[103:96] = 8'b0_0110_010;
-                        csd_en = 1'b1;
-                        clk_div_cnt_gen_start = 1'b1;
-                        NS = IDENT_MODE__CLK_ADJ;
-                    end
+                    NS = IDENTIFICATION__CMD3_PROC;
                 end
             end
 
             // not finished receiving response
             else begin
-					  // timeout occurred in receiving response
-					  if (timeout_counter_out == 6'd5) begin
-							NS = ERROR;
-					  end 
-					  else begin
-							timeout_counter_in = timeout_counter_out + 1'b1;
-							NS = IDENTIFICATION__CMD3_RECEIVE;
-					  end
+                // received response
+                if (sd_receive_started) begin
+                    timeout_counter_in = 6'd0;
+                    NS = IDENTIFICATION__CMD3_RECEIVE;
+                end
+                // timeout occurred in receiving response
+                else if (timeout_counter_out == 6'd5) begin
+                    NS = ERROR;
+                end 
+                else begin
+                    timeout_counter_in = timeout_counter_out + 1'b1;
+                    NS = IDENTIFICATION__CMD3_RECEIVE;
+                end
+            end
+        end
+
+        IDENTIFICATION__CMD3_PROC: begin
+            // wait 8 clock cycles before send next command
+            if (clock_counter_out == 6'd8) begin
+                NS = STANDBY;
+            end
+            // initial checks
+            else if (clock_counter_out == 6'd0) begin
+                // load data -- R6 response
+                // [124:119] command index
+                // [118:103] new RCA
+                // [102:87]  card status
+                receive_status_in[37:32] = response[124:119];
+                {receive_status_in[23:22],
+                 receive_status_in[19],
+                 receive_status_in[12:0]} = response[102:87];
+                receive_status_en = 1'b1; 
+                
+                rca_in = response[118:103];
+                rca_en = 1'b1;
+                clock_counter_in = 6'd1;
+                NS = IDENTIFICATION__CMD3_PROC;
+
+                // check status field bits
+                if (response[102:96] & ~7'b0 > 0) NS = ERROR;
+                else begin
+                    // give default value of 25MHz
+                    csd_in[103:96] = 8'b00110010;
+                    csd_en = 1'b1;
+                    clk_div_cnt_gen_start = 1'b1;
+                    NS = IDENT_MODE__CLK_ADJ;
+                end
+            end
+            // clock_counter 1-7 -- delay before next send
+            else begin
+                clock_counter_in = clock_counter_out + 1'b1;
+                NS = IDLE__ACMD41_PROC;
             end
         end
 

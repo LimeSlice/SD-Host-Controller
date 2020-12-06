@@ -1,8 +1,9 @@
 module clk_div_count_generator (
     input clk, reset, start,
     input [7:0] tran_speed,
-    output ok, err,
-    output [16:0] count
+    output ok, err, 
+    output reg clk_div_reset,
+    output [15:0] count
 );
 
 reg [31:0] rate;
@@ -12,7 +13,11 @@ wire [31:0] _count;
 
 initial rate = 32'b0;
 
-register #(17,0) count_reg (clk, reset, {1'b1, _count[15:0]}, ok, count);
+// dff to delay ok signal 1 clk cycle
+always @(posedge clk)
+    clk_div_reset <= ok;
+
+register #(16,0) count_reg (clk, reset, _count[15:0], ok, count);
 
 divider gen (
     // inputs
@@ -36,7 +41,7 @@ function [31:0] rate_unit;
 endfunction
 
 always @(tran_speed) begin
-    case (tran_speed[6:3])
+    case (tran_speed[6:3]) 
         4'h1: rate = 10 * rate_unit(tran_speed[1:0]);
         4'h2: rate = 12 * rate_unit(tran_speed[1:0]);
         4'h3: rate = 13 * rate_unit(tran_speed[1:0]);

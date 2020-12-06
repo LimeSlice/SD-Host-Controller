@@ -29,7 +29,7 @@ register #(16,16'h0404) DSR (clk, reset, dsr_in, dsr_en, dsr_out);
 
 // Card specific data; info about card operating conditions
 defparam CSD.WIDTH = 128;
-defparam CSD.RST_VAL = {24'b0, 8'b0_1001_000, 96'b0};
+defparam CSD.RST_VAL = {24'b0, 8'b00110010, 96'b0};
 register CSD (clk, reset, csd_in, csd_en, csd_out);
 
 // SD Config Register; info about SD memory card's special features

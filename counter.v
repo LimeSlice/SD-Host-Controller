@@ -12,7 +12,7 @@ module counter
             out <= 1'b0;
             counter <= 1'b0;
         end
-        else if (counter == count) begin
+        else if (counter == (count >> 2)) begin
             out <= ~out;
             counter <= 1'b0;
         end
