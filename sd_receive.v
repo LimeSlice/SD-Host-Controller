@@ -28,7 +28,7 @@ module sd_receive (
         .R2_response(R2_response), .sd_cmd(sd_cmd), .response(rx_resp), 
         .finished(finished), .started(sd_receive_started));
     
-    always @(posedge sd_clk, posedge reset) begin
+    always @(posedge ex_clk, posedge reset) begin
         if (reset) PS <= IDLE;
         else PS <= NS;
     end

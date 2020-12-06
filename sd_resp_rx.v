@@ -25,7 +25,7 @@ module sd_resp_rx(clk, reset, en, R2_response, sd_cmd, response, finished, start
                 // Before start bit -- preserve data
                 else if (index == 8'b0 && sd_cmd == 1'b1) begin
                     response <= response;
-                    index    <= index;
+                    index    <= 8'd0;
                     finished <= 1'b0;
                     started  <= 1'b0;
                 end

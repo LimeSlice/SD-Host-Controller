@@ -13,8 +13,8 @@ assign sd_cmd_pin = cmd_en ? cmd_pin : 1'bz;
 assign sd_dat_pin = dat_en ? dat_pin : 4'bz;
 
 // Helper registers / variables
-reg [47:0] R1_response;
-reg [31:0] card_status;
+reg [47:0] R1_response, R3_response;
+reg [31:0] card_status, ocr;
 reg [6:0] crc7;
 
 integer i;
@@ -96,7 +96,7 @@ initial begin
         #10;
     end
 
-    $display("SD sending @ time = %0d", $time);
+    $display("SD sending CMD55 @ time = %0d", $time);
 
     // wait while sd sending data
     while (uut.send.sending) begin
@@ -106,15 +106,7 @@ initial begin
     $display("SD done sending @ time = %0d", $time);
 
     // loop goes 1 ex_clk cycle past after finished receiving
-    // wait 2 cycles to test timeout
-    SD_CLK_PERIOD; // 1 sd_clk cycle
-
-    if (uut.fsm.timeout_counter_out != 1) begin
-        $display("Did not increment timeout counter\n");
-        $stop;
-    end
-
-    #2510; // 1 sd_clk cycle - 1 ex_clk cycle 
+    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
 
     $display("Starting CMD55 response @ time = %0d", $time);
 
@@ -122,15 +114,54 @@ initial begin
     // { start bit, transmission bit, 6 bits CMD_INDEX, 32 bits card status, 7 bits CRC7, end bit}
     card_status = 32'b0;
     crc7 = 7'h78;
+    cmd_en = 1'b1;
     R1_response = {1'b0, 1'b0, 6'd55, card_status, crc7, 1'b1};
 
-    for (i = 0; i < 48; i = i + 1) begin
+    for (i = 47; i >= 0; i = i - 1) begin
         cmd_pin = R1_response[i]; 
-        cmd_en = 1'b1;
         SD_CLK_PERIOD;
     end
 
+    SD_CLK_PERIOD;
+
     $display("SD received CMD55 response @ time = %0d", $time);
+
+    cmd_en = 1'b0; SD_CLK_PERIOD;
+
+    // brief pause until it starts to send
+    while (!uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD sending ACMD41 @ time = %0d", $time);
+
+    while (uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD done sending @ time = %0d", $time);
+
+    // loop goes 1 ex_clk cycle past after finished receiving
+    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
+
+    $display("Starting ACMD41 response @ time = %0d", $time);
+
+    // OCR[31] - busy flag
+    // OCR defines what voltages ranges SD card can handle
+    ocr = {1'b0, 31'b1};
+    cmd_en = 1'b1;
+    R3_response = {1'b0, 1'b0, 6'b1, ocr, 7'b1, 1'b1};
+
+    for (i = 47; i >= 0; i = i - 1) begin
+        cmd_pin = R3_response[i];
+        SD_CLK_PERIOD;
+    end
+
+    SD_CLK_PERIOD;
+
+    $display("SD received ACMD41 response @ time = %0d", $time);
+
+    cmd_en = 1'b0; SD_CLK_PERIOD;
 
     #1000000;
 

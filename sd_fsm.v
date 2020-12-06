@@ -37,6 +37,7 @@ parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1},
                  IDLE__CMD55_SEND = {4'd0,6'd0}, IDLE__CMD55_RECEIVE = {4'd0,6'd1}, 
                  IDLE__ACMD41_SEND = {4'd0,6'd2}, IDLE__ACMD41_RECEIVE = {4'd0,6'd3},
                  IDLE__CMD55_WAIT = {4'd0,6'd4}, IDLE__ACMD41_WAIT = {4'd0,6'd5},
+                 IDLE__CMD55_PROC = {4'd0,6'd6}, IDLE__ACMD41_PROC = {4'd0,6'd7},
                  READY__CMD2_SEND = {4'd1,6'd1}, READY__CMD2_RECEIVE = {4'd1,6'd2},
                  IDENTIFICATION__CMD3_SEND = {4'd2,6'd1}, IDENTIFICATION__CMD3_RECEIVE = {4'd2,6'd2},
                  STANDBY = {4'd3, 6'd0};
@@ -194,7 +195,7 @@ begin
 
         IDLE__CMD55_WAIT: begin
             if (sd_send_finished) begin
-                // enable receiver to receive
+                receive_en = 1'b1;
                 NS = IDLE__CMD55_RECEIVE;
             end
             else begin
@@ -214,38 +215,7 @@ begin
                 
                 // valid response
                 else begin
-                    
-                    // load register
-                    if (clock_counter_out == 6'd0) begin
-                        receive_status_in[37:0] = response[124:88];
-                        receive_status_en = 1'b1;
-                        clock_counter_in = 6'd1; // increment clock cycle once
-                        NS = IDLE__CMD55_RECEIVE;
-                    end
-                    
-                    // cmd line not responding to CMD55 
-                    else if (receive_status_out[37:32] != CMD55) begin
-                        // go to ERROR (temporary, need to update)
-                        NS = ERROR;
-                    end
-
-                    // check status field
-                    else if ({receive_status_out[27:9],
-                              receive_status_out[5]} & ~19'b0 > 19'b0) begin
-                        // if error -> go to ERROR (temporary, need to update)
-                        NS = ERROR;
-                    end
-
-                    // no errors -- wait 8 clock cycles before send next command
-                    else if (clock_counter_out == 6'd8) begin
-                        NS = IDLE__ACMD41_SEND;
-                    end
-                    
-                    // clock_counter 1-7 -- delay before next send 
-                    else begin
-                        clock_counter_in = clock_counter_out + 1'b1;
-                        NS = IDLE__CMD55_RECEIVE;
-                    end
+                    NS = IDLE__CMD55_PROC;
                 end
             end
 
@@ -267,12 +237,60 @@ begin
             end
         end
 
-        IDLE__ACMD41_SEND: begin
-            // send ACMD41 -- OCR w/o busy bit
-            send_cmd_content = {1'b0, ocr_out[30:0]};
-            send_en = 1'b1;
+        IDLE__CMD55_PROC: begin
+            // load register
+            if (clock_counter_out == 6'd0) begin
+                receive_status_in[37:0] = response[125:87];
+                receive_status_en = 1'b1;
+                clock_counter_in = 6'd1; // increment clock cycle once
+                NS = IDLE__CMD55_PROC;
+            end
+            
+            // cmd line not responding to CMD55 
+            else if (receive_status_out[37:32] != CMD55) begin
+                // go to ERROR (temporary, need to update)
+                NS = ERROR;
+            end
 
-            NS = IDLE__ACMD41_RECEIVE;
+            // check status field
+            else if ({receive_status_out[27:9],
+                        receive_status_out[5]} & ~19'b0 > 19'b0) begin
+                // if error -> go to ERROR (temporary, need to update)
+                NS = ERROR;
+            end
+
+            // no errors -- wait 8 clock cycles before send next command
+            else if (clock_counter_out == 6'd8) begin
+                NS = IDLE__ACMD41_SEND;
+            end
+            
+            // clock_counter 1-7 -- delay before next send 
+            else begin
+                clock_counter_in = clock_counter_out + 1'b1;
+                NS = IDLE__CMD55_PROC;
+            end
+        end
+
+        IDLE__ACMD41_SEND: begin
+            if (sd_sending) begin
+                NS = IDLE__ACMD41_WAIT;
+            end
+            // send ACMD41 -- OCR w/o busy bit
+            else begin
+                send_cmd_content = {1'b0, ocr_out[30:0]};
+                send_en = 1'b1;
+                NS = IDLE__ACMD41_SEND; 
+            end
+        end
+
+        IDLE__ACMD41_WAIT: begin
+            if (sd_send_finished) begin
+                receive_en = 1'b1;
+                NS = IDLE__ACMD41_RECEIVE;
+            end
+            else begin
+                NS = IDLE__ACMD41_WAIT;
+            end
         end
 
         IDLE__ACMD41_RECEIVE: begin
@@ -283,47 +301,56 @@ begin
             if (sd_receive_finished) begin
                 
                 // no crc -- no crc_response_err
-
-                // wait 8 clock cycles before send next command
-                if (clock_counter_out == 6'd8) begin
-                    NS = READY__CMD2_SEND;
-                end
-                // initial checks
-                else if (clock_counter_out == 6'd0) begin
-                    // check OCR reg
-                    // OCR[31] -- card is busy
-                    if (response[118]) begin
-                        NS = IDLE__CMD55_SEND;
-                    end
-                    // check SD voltage range to check compatibility
-                    else if (response[108:107] & 2'b11 == 2'b0) begin
-                        NS = INACTIVE;
-                    end
-                    // load receive_status reg
-                    else begin
-                        receive_status_in = response[124:119];
-                        receive_status_en = 1'b1;
-                        clock_counter_in = 6'd1;
-                        NS = IDLE__ACMD41_RECEIVE;
-                    end
-                end
-                // clock_counter 1-7 -- delay before next send
-                else begin
-                    clock_counter_in = clock_counter_out + 1'b1;
-                    NS = IDLE__ACMD41_RECEIVE;
-                end
+                NS = IDLE__ACMD41_PROC;
+                
             end
 
             // not finished receiving response
             else begin
-                 // timeout occurred in receiving response
-					  if (timeout_counter_out == 6'd5) begin
-							NS = ERROR;
-					  end 
-					  else begin
-							timeout_counter_in = timeout_counter_out + 1'b1;
-							NS = IDLE__ACMD41_RECEIVE;
-					  end
+                // received response
+                if (sd_receive_started) begin
+                    timeout_counter_in = 6'd0;
+                    NS = IDLE__ACMD41_RECEIVE;
+                end
+                // timeout occurred in receiving response
+                else if (timeout_counter_out == 6'd5) begin
+                    NS = ERROR;
+                end 
+                else begin
+                    timeout_counter_in = timeout_counter_out + 1'b1;
+                    NS = IDLE__ACMD41_RECEIVE;
+                end
+            end
+        end
+
+        IDLE__ACMD41_PROC: begin
+            // wait 8 clock cycles before send next command
+            if (clock_counter_out == 6'd8) begin
+                NS = READY__CMD2_SEND;
+            end
+            // initial checks
+            else if (clock_counter_out == 6'd0) begin
+                // check OCR reg
+                // OCR[31] -- card is busy
+                if (response[118]) begin
+                    NS = IDLE__CMD55_SEND;
+                end
+                // check SD voltage range to check compatibility
+                else if (response[108:107] & 2'b11 == 2'b0) begin
+                    NS = INACTIVE;
+                end
+                // load receive_status reg
+                else begin
+                    receive_status_in = response[124:119];
+                    receive_status_en = 1'b1;
+                    clock_counter_in = 6'd1;
+                    NS = IDLE__ACMD41_PROC;
+                end
+            end
+            // clock_counter 1-7 -- delay before next send
+            else begin
+                clock_counter_in = clock_counter_out + 1'b1;
+                NS = IDLE__ACMD41_PROC;
             end
         end
 

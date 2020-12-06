@@ -91,7 +91,9 @@ sd_receive receive (
     ex_clk, sd_clk, ~ex_resetn | sd_reset,
     receive_en, R2_response, R3_response, sd_cmd_pin, 
     // outputs
-    response, crc_response_err, sd_receive_finished, sd_receive_started
+    response, 
+    sd_receive_started,
+    crc_response_err, sd_receive_finished
 );
 
 sd_fsm fsm (

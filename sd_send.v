@@ -15,7 +15,7 @@ assign sd_dat = 4'b0;
 // cmd_token[0]     = 1 (end bit)
 wire [37:0] cmd_content_out;
 
-reg crc_load;
+reg crc_load, tx_reset;
 reg [2:1] PS, NS;
 
 wire [6:0] cmd_crc;
@@ -30,7 +30,7 @@ register #(38,0) cmd_content_reg (ex_clk, reset, cmd_content, send_en, cmd_conte
 crc7 #(40) crc_gen (.clk(ex_clk), .reset(reset), .load(crc_load), 
     .data_in({1'b0, 1'b1, cmd_content_out}), .crc_ready(crc_ready), .crc(cmd_crc));
 
-sd_cmd_tx transmitter (.clk(sd_clk), .reset(reset),
+sd_cmd_tx transmitter (.clk(sd_clk), .reset(tx_reset | reset),
     .en(crc_ready), .sending(sending), .cmd({1'b0, 1'b1, cmd_content_out, cmd_crc, 1'b1}), .sd_cmd(sd_cmd));
 
 always @(posedge ex_clk, posedge reset) begin
@@ -39,7 +39,7 @@ always @(posedge ex_clk, posedge reset) begin
 end
 
 always @(PS, send_en, crc_ready, sending) begin
-    {crc_load, sd_cmd_we, sd_dat_we, finished} = 0;
+    {tx_reset, crc_load, sd_cmd_we, sd_dat_we, finished} = 0;
     case (PS)
         IDLE: begin
             if (send_en) begin
@@ -50,6 +50,7 @@ always @(PS, send_en, crc_ready, sending) begin
         end
         PREP: begin
             if (crc_ready) begin
+                tx_reset = 1'b1;
                 NS = WAIT_FOR_SENDING;
             end
             else NS = PREP;
