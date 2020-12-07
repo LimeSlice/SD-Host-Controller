@@ -1,7 +1,7 @@
 module sd_receive (
     input ex_clk, sd_clk, reset, receive_en, R2_response, R3_response, sd_cmd,
     output [126:0] response,
-    output sd_receive_started,
+    output sd_receive_started, crc_loaded,
     output reg crc_err, sd_receive_finished 
 );
 
@@ -14,6 +14,7 @@ module sd_receive (
 
     parameter [2:1] IDLE = 2'b00, RECEIVING = 2'b01, LOAD = 2'b10, CHECKING = 2'b11;
 
+    assign crc_loaded = crc_load_120 | crc_load_40;
     assign response = R2_response ? rx_resp[126:0] : rx_resp[134:8];
 
     // Computes from start bit to CRC segment [47:7]

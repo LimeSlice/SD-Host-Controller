@@ -11,8 +11,6 @@ wire [31:0] R; // don't know what it does...don't care
 
 wire [31:0] _count;
 
-initial rate = 32'b0;
-
 // dff to delay ok signal 1 clk cycle
 always @(posedge clk)
     clk_div_reset <= ok;

@@ -30,7 +30,7 @@ register #(38,0) cmd_content_reg (ex_clk, reset, cmd_content, send_en, cmd_conte
 crc7 #(40) crc_gen (.clk(ex_clk), .reset(reset), .load(crc_load), 
     .data_in({1'b0, 1'b1, cmd_content_out}), .crc_ready(crc_ready), .crc(cmd_crc));
 
-sd_cmd_tx transmitter (.clk(sd_clk), .reset(tx_reset | reset),
+sd_cmd_tx transmitter (.clk(sd_clk), .reset(tx_reset),
     .en(crc_ready), .sending(sending), .cmd({1'b0, 1'b1, cmd_content_out, cmd_crc, 1'b1}), .sd_cmd(sd_cmd));
 
 always @(posedge ex_clk, posedge reset) begin
@@ -73,7 +73,6 @@ always @(PS, send_en, crc_ready, sending) begin
                 NS = IDLE;
             end
         end
-        default: NS = IDLE;
     endcase
 end
     

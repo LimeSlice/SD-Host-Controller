@@ -2,6 +2,7 @@ module sd_fsm (
     input ex_clk, sd_clk, reset, software_reset, sd_cd_pin, sd_wp_pin,
     input uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
     input sd_sending, sd_send_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    input crc_loaded,
     input [127:0] cid_out, csd_out, 
     input [126:0] response, 
     input [63:0]  scr_out, receive_status_out,
@@ -34,14 +35,18 @@ parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1},
                  IDENT_MODE__CMD0_SEND = {4'd9,6'd2}, IDENT_MODE__CMD0_WAIT = {4'd9,6'd3},
                  TRANS_MODE__CMD0_SEND = {4'd9,6'd4}, TRANS_MODE__CMD0_WAIT = {4'd9,6'd5}, 
                  IDENT_MODE__CLK_ADJ = {4'd9,6'd6}, TRANS_MODE__CLK_ADJ = {4'd9,6'd7},
+                 
                  IDLE__CMD55_SEND = {4'd0,6'd0}, IDLE__CMD55_RECEIVE = {4'd0,6'd1}, 
                  IDLE__ACMD41_SEND = {4'd0,6'd2}, IDLE__ACMD41_RECEIVE = {4'd0,6'd3},
                  IDLE__CMD55_WAIT = {4'd0,6'd4}, IDLE__ACMD41_WAIT = {4'd0,6'd5},
                  IDLE__CMD55_PROC = {4'd0,6'd6}, IDLE__ACMD41_PROC = {4'd0,6'd7},
+                 
                  READY__CMD2_SEND = {4'd1,6'd0}, READY__CMD2_RECEIVE = {4'd1,6'd1},
                  READY__CMD2_WAIT = {4'd1,6'd2}, READY__CMD2_PROC = {4'd1,6'd3},
+                 
                  IDENTIFICATION__CMD3_SEND = {4'd2,6'd0}, IDENTIFICATION__CMD3_RECEIVE = {4'd2,6'd1},
                  IDENTIFICATION__CMD3_WAIT = {4'd2,6'd2}, IDENTIFICATION__CMD3_PROC = {4'd2,6'd3},
+                 
                  STANDBY = {4'd3, 6'd0};
 
 parameter [6:1] CMD0   = 6'd0,   // GO_IDLE_STATE
@@ -88,15 +93,16 @@ dflipflop #(6) clock_counter (sd_clk, reset, clock_counter_in, clock_counter_out
 
 always @(posedge ex_clk, posedge reset) begin
     if (reset)  PS <= TRANS_MODE__CLK_ADJ;
+    else if (crc_response_err) PS <= ERROR;
     else        PS <= NS;
 end
 
-always @(PS, software_reset, uart_cmd_en, crc_response_err, sd_receive_finished, 
-			sd_sending, sd_send_finished, sd_receive_started, 
-            clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
-			cid_out, csd_out, response, scr_out, receive_status_out, ocr_out,
-			rca_out, dsr_out, uart_cmd, host_cmd, sd_cd_pin, sd_wp_pin, 
-			clock_counter_out, timeout_counter_out) 
+always @(PS, software_reset, uart_cmd_en, sd_receive_finished, 
+         sd_sending, sd_send_finished, sd_receive_started, 
+         clk_div_cnt_gen_ok, clk_div_cnt_gen_err, crc_loaded, 
+         cid_out, csd_out, response, scr_out, receive_status_out, ocr_out,
+         rca_out, dsr_out, uart_cmd, host_cmd, sd_cd_pin, sd_wp_pin, 
+         clock_counter_out, timeout_counter_out) 
 begin
 	{	sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
 		sd_tx_en, receive_en, 
@@ -207,18 +213,8 @@ begin
 
         IDLE__CMD55_RECEIVE: begin
             // received response
-            if (sd_receive_finished) begin
-                
-                // crc error in response
-                if (crc_response_err) begin
-                    // if error -> go to ERROR (temporary, need to update)
-                    NS = ERROR;
-                end
-                
-                // valid response
-                else begin
-                    NS = IDLE__CMD55_PROC;
-                end
+            if (crc_loaded) begin
+                NS = IDLE__CMD55_PROC;
             end
 
             // not finished receiving response
@@ -335,7 +331,7 @@ begin
                     NS = IDLE__CMD55_SEND;
                 end
                 // check SD voltage range to check compatibility
-                else if (response[108:107] & 2'b11 == 2'b0) begin
+                else if (response[108:107] != 2'b0) begin
                     NS = INACTIVE;
                 end
                 // load receive_status reg
@@ -365,6 +361,7 @@ begin
             else begin
                 // send CMD2 -- [37:32] command index, [31:0] stuff bits
                 send_cmd_content = {CMD2, 32'b0};
+                send_en = 1'b1;
                 NS = READY__CMD2_SEND; 
             end
         end
@@ -384,15 +381,8 @@ begin
             R2_response = 1'b1;
 
             // received response
-            if (sd_receive_finished) begin
-                // crc error in response
-                if (crc_response_err) begin
-                    // if error -> go to ERROR (temporary, need to update)
-                    NS = ERROR;
-                end
-                else begin
-                    NS = READY__CMD2_PROC;
-                end
+            if (crc_loaded) begin
+                NS = READY__CMD2_PROC;
             end
 
             // not finished receiving response
@@ -461,15 +451,8 @@ begin
 
         IDENTIFICATION__CMD3_RECEIVE: begin
             // received response
-            if (sd_receive_finished) begin
-                // crc error in response
-                if (crc_response_err) begin
-                    // if error -> go to ERROR (temporary, need to update)
-                    NS = ERROR;
-                end
-                else begin
-                    NS = IDENTIFICATION__CMD3_PROC;
-                end
+            if (crc_loaded) begin
+                NS = IDENTIFICATION__CMD3_PROC;
             end
 
             // not finished receiving response
@@ -510,17 +493,10 @@ begin
                 rca_in = response[118:103];
                 rca_en = 1'b1;
                 clock_counter_in = 6'd1;
-                NS = IDENTIFICATION__CMD3_PROC;
 
                 // check status field bits
-                if (response[102:96] & ~7'b0 > 0) NS = ERROR;
-                else begin
-                    // give default value of 25MHz
-                    csd_in[103:96] = 8'b00110010;
-                    csd_en = 1'b1;
-                    clk_div_cnt_gen_start = 1'b1;
-                    NS = IDENT_MODE__CLK_ADJ;
-                end
+                if (response[102:96] > 0) NS = ERROR;
+                else NS = IDENTIFICATION__CMD3_PROC;
             end
             // clock_counter 1-7 -- delay before next send
             else begin

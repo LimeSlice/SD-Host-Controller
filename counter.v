@@ -5,7 +5,7 @@ module counter
         output reg out
     );
 
-    reg [15:0] counter = 16'b0;
+    reg [15:0] counter;
 
     always @(posedge clk, posedge reset) begin
         if (reset) begin

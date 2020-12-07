@@ -15,8 +15,9 @@ assign sd_dat_pin = dat_en ? dat_pin : 4'bz;
 // Helper registers / variables
 reg [135:0] R2_response;
 reg [126:0] cid;
-reg [47:0] R1_response, R3_response;
+reg [47:0] R1_response, R3_response, R6_response;
 reg [31:0] card_status, ocr;
+reg [15:0] rca;
 reg [6:0] crc7;
 
 integer i;
@@ -45,7 +46,7 @@ endtask
 
 task SD_CLK_PERIOD;
 begin
-    #2520;
+    #20;
 end
 endtask
 
@@ -64,9 +65,6 @@ begin
     end
 
     $display("SD done sending @ time = %0d", $time);
-
-    // loop goes 1 ex_clk cycle past after finished receiving
-    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
 
     $display("Starting CMD55 response @ time = %0d", $time);
 
@@ -105,9 +103,6 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
-    // loop goes 1 ex_clk cycle past after finished receiving
-    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
-
     $display("Starting ACMD41 response @ time = %0d", $time);
 
     // OCR[31] - busy flag
@@ -144,18 +139,16 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
-    // loop goes 1 ex_clk cycle past after finished receiving
-    #2510; // 1 sd_clk cycle - 1 ex_clk cycle
-
     $display("Starting CMD2 response @ time = %0d", $time);
 
     // cid is info about the SD card. random values can be used, but internal
     // CRC must be valid
-    crc7 = 6'h25;
+    crc7 = 7'h25;
     cid = {120'hAFE53C7AB12900000ECD, crc7, 1'b1};
+    cmd_en = 1'b1;
     R2_response = {1'b0, 1'b0, 6'b1, cid, 1'b1};
 
-    for (i = 47; i >= 0; i = i - 1) begin
+    for (i = 135; i >= 0; i = i - 1) begin
         cmd_pin = R2_response[i];
         SD_CLK_PERIOD;
     end
@@ -170,7 +163,37 @@ endtask
 
 task CMD3;
 begin
-    
+    // brief pause until it starts to send
+    while (!uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD sending CMD3 @ time = %0d", $time);
+
+    while (uut.send.sending) begin
+        #10;
+    end
+
+    $display("SD done sending @ time = %0d", $time);
+
+    $display("Starting CMD3 response @ time = %0d", $time);
+
+    rca = 16'hF792;
+    card_status = 16'b0;
+    crc7 = 7'h70;
+    cmd_en = 1'b1;
+    R6_response = {1'b0, 1'b0, 6'd3, rca, card_status, crc7, 1'b1};
+
+    for (i = 47; i >= 0; i = i - 1) begin
+        cmd_pin = R6_response[i];
+        SD_CLK_PERIOD;
+    end
+
+    SD_CLK_PERIOD;
+
+    $display("SD received CMD2 response @ time = %0d", $time);
+
+    cmd_en = 1'b0; SD_CLK_PERIOD; 
 end
 endtask
 

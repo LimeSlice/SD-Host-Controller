@@ -14,8 +14,8 @@ wire [3:0] sd_dat_out;
 assign sd_cmd_pin = sd_cmd_we ? sd_cmd_out : 1'bz;
 assign sd_dat_pin = sd_dat_we ? sd_dat_out: 4'bz;
 
-wire sd_clk, sd_reset, software_reset, sd_tx_en, uart_cmd_en, host_reset_clear;
-wire received_error;
+wire sd_clk, sd_reset, software_reset, clk_div_reset, sd_tx_en, uart_cmd_en;
+wire received_error, host_reset_clear;
 wire [3:0] host_cmd;
 wire [5:0] uart_cmd;
 wire [7:0] sd_tx_data;
@@ -36,7 +36,7 @@ wire [37:0] send_cmd_content;
 
 // sd_receive
 wire receive_en, R2_response, R3_response, crc_response_err, sd_receive_finished;
-wire sd_receive_started;
+wire sd_receive_started, crc_loaded;
 wire [126:0] response;
 
 // uart
@@ -92,7 +92,7 @@ sd_receive receive (
     receive_en, R2_response, R3_response, sd_cmd_pin, 
     // outputs
     response, 
-    sd_receive_started,
+    sd_receive_started, crc_loaded,
     crc_response_err, sd_receive_finished
 );
 
@@ -100,7 +100,8 @@ sd_fsm fsm (
     // inputs
     ex_clk, sd_clk, ~ex_resetn, software_reset, sd_cd_pin, sd_wp_pin,
     uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
-    sd_sending, sd_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
+    sd_sending, sd_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err, 
+    crc_loaded,
     cid_out, csd_out, response, 
     scr_out, receive_status_out,
     ocr_out,

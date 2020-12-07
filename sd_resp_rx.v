@@ -23,7 +23,7 @@ module sd_resp_rx(clk, reset, en, R2_response, sd_cmd, response, finished, start
                     started  <= 1'b1;   
                 end
                 // Before start bit -- preserve data
-                else if (index == 8'b0 && sd_cmd == 1'b1) begin
+                else if (index == 8'b0 && sd_cmd == 1'b1 && !R2_response) begin
                     response <= response;
                     index    <= 8'd0;
                     finished <= 1'b0;
@@ -40,7 +40,7 @@ module sd_resp_rx(clk, reset, en, R2_response, sd_cmd, response, finished, start
                 else begin
                     if (R2_response) begin
                         // Process stop bit
-                        if (index == 0 && sd_cmd == 0) begin
+                        if (index == 1'b0 && sd_cmd == 1'b1) begin
                             response <= response; // preserve response
                             index    <= 8'd0;
                             finished <= 1'b1;
@@ -90,7 +90,7 @@ module sd_resp_rx(clk, reset, en, R2_response, sd_cmd, response, finished, start
             else begin
                 response <= response;
                 index    <= index;
-                finished <= finished;
+                finished <= 1'b0;
                 started  <= 1'b0;
             end
         end
