@@ -7,23 +7,31 @@ module sd_receive (
 
     wire finished, crc_ready_40, crc_ready_120;
     wire [6:0] resp_crc, check_crc_40, check_crc_120;
-    wire [134:0] rx_resp;
+    wire [133:1] rx_resp;
 
-    reg rx_en, crc_load_40, crc_load_120;
+    reg r2_resp, save_r2, rx_en, crc_load_40, crc_load_120;
     reg [2:1] PS, NS;
 
     parameter [2:1] IDLE = 2'b00, RECEIVING = 2'b01, LOAD = 2'b10, CHECKING = 2'b11;
 
     assign crc_loaded = crc_load_120 | crc_load_40;
-    assign response = R2_response ? rx_resp[126:0] : rx_resp[134:8];
+    assign response = R2_response ? rx_resp[133:7] : rx_resp[133:96];
+
+    // preserve R2 response variable as receives don't for crc7 checks
+    always @(posedge ex_clk, posedge reset) begin
+        if (reset) r2_resp <= 0;
+        else if (save_r2) r2_resp <= R2_response;
+        else r2_resp <= r2_resp;
+    end
+
 
     // Computes from start bit to CRC segment [47:7]
-    crc7 #(40) crc_40bit (.clk(ex_clk), .reset(reset), .load(crc_load_40),
-        .data_in(rx_resp[134:95]), .crc_ready(crc_ready_40), .crc(check_crc_40));
+    crc7 #(38) crc_40bit (.clk(ex_clk), .reset(reset), .load(crc_load_40),
+        .data_in(rx_resp[133:96]), .crc_ready(crc_ready_40), .crc(check_crc_40));
     
     // ignores start, transmit, and 6 command bits. Computes next 120 bits. [127:7]
     crc7 #(120) crc_120bit (.clk(ex_clk), .reset(reset), .load(crc_load_120),
-        .data_in(rx_resp[126:7]), .crc_ready(crc_ready_120), .crc(check_crc_120));
+        .data_in(rx_resp[127:8]), .crc_ready(crc_ready_120), .crc(check_crc_120));
 
     sd_resp_rx receiver (.clk(sd_clk), .reset(reset), .en(rx_en), 
         .R2_response(R2_response), .sd_cmd(sd_cmd), .response(rx_resp), 
@@ -38,87 +46,59 @@ module sd_receive (
 				 R2_response, R3_response, check_crc_120, rx_resp, 
 				 crc_ready_40, check_crc_40) 
 	 begin
-        crc_err = 0;
+
+        {crc_err, save_r2, rx_en, sd_receive_finished, crc_load_40, crc_load_120} = 0;
+        
         case (PS)
             IDLE: begin
-                crc_load_40 = 1'b0;
-                crc_load_120 = 1'b0;
-                rx_en = 1'b0;
-                sd_receive_finished = 1'b0;
                 if (receive_en) NS = RECEIVING;
                 else    NS = IDLE;
             end
             RECEIVING: begin
                 if (finished) begin
+                    save_r2 = 1'b1;
                     if (R2_response) begin
-                        crc_load_40 = 1'b0;
                         crc_load_120 = 1'b1;
-                        rx_en = 1'b0;
-                        sd_receive_finished = 1'b0;
                         NS = LOAD;
                     end
                     // no checksum -- done
                     else if (R3_response) begin
-                        crc_load_40 = 1'b0;
-                        crc_load_120 = 1'b0;
-                        rx_en = 1'b0;
                         sd_receive_finished = 1'b1;
                         NS = IDLE;
                     end
                     else begin
                         crc_load_40 = 1'b1;
-                        crc_load_120 = 1'b0;
-                        rx_en = 1'b0;
-                        sd_receive_finished = 1'b0;
                         NS = LOAD;
                     end
                 end
                 else begin
-                    crc_load_40 = 1'b0;
-                    crc_load_120 = 1'b0;
                     rx_en = 1'b1;
-                    sd_receive_finished = 1'b0;
                     NS = RECEIVING;
                 end
             end
             LOAD: begin
-                rx_en = 1'b0;
-                crc_load_40 = 1'b0;
-                crc_load_120 = 1'b0;
-                sd_receive_finished = 1'b0;
                 NS = CHECKING;
             end
             CHECKING: begin
-                rx_en = 1'b0;
-                crc_load_40 = 1'b0;
-                crc_load_120 = 1'b0;
-                if (R2_response) begin
+                if (r2_resp) begin
                     if (crc_ready_120) begin
-                        if (check_crc_120 != rx_resp[6:0])
+                        if (check_crc_120 != rx_resp[7:1])
                             crc_err = 1'b1;
-                        else
-                            crc_err = 1'b0;
                         sd_receive_finished = 1'b1;
                         NS = IDLE;
                     end
                     else begin
-                        sd_receive_finished = 1'b0;
-                        crc_err = 1'b0;
                         NS = CHECKING;
                     end
                 end
                 else begin
                     if (crc_ready_40) begin
-                        if (check_crc_40 != rx_resp[94:88])
+                        if (check_crc_40 != rx_resp[95:89])
                             crc_err = 1;
-                        else 
-                            crc_err = 0;
                         sd_receive_finished = 1'b1;
                         NS = IDLE;
                     end
                     else begin
-                        crc_err = 0;
-                        sd_receive_finished = 1'b0;
                         NS = CHECKING;
                     end
                 end

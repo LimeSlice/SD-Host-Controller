@@ -32,6 +32,7 @@ reg [10:1] PS, NS;
 // should be apart of the next "state"
 // **********************************************************************
 parameter [10:1] INACTIVE = {4'd9,6'd0}, ERROR = {4'd9,6'd1}, 
+
                  IDENT_MODE__CMD0_SEND = {4'd9,6'd2}, IDENT_MODE__CMD0_WAIT = {4'd9,6'd3},
                  TRANS_MODE__CMD0_SEND = {4'd9,6'd4}, TRANS_MODE__CMD0_WAIT = {4'd9,6'd5}, 
                  IDENT_MODE__CLK_ADJ = {4'd9,6'd6}, TRANS_MODE__CLK_ADJ = {4'd9,6'd7},
@@ -238,7 +239,7 @@ begin
         IDLE__CMD55_PROC: begin
             // load register
             if (clock_counter_out == 6'd0) begin
-                receive_status_in[37:0] = response[125:87];
+                receive_status_in[37:0] = response[133:96];
                 receive_status_en = 1'b1;
                 clock_counter_in = 6'd1; // increment clock cycle once
                 NS = IDLE__CMD55_PROC;
@@ -252,7 +253,7 @@ begin
 
             // check status field
             else if ({receive_status_out[27:9],
-                        receive_status_out[5]} & ~19'b0 > 19'b0) begin
+                        receive_status_out[5]} > 19'b0) begin
                 // if error -> go to ERROR (temporary, need to update)
                 NS = ERROR;
             end
@@ -501,7 +502,7 @@ begin
             // clock_counter 1-7 -- delay before next send
             else begin
                 clock_counter_in = clock_counter_out + 1'b1;
-                NS = IDLE__ACMD41_PROC;
+                NS = IDENTIFICATION__CMD3_PROC;
             end
         end
 

@@ -27,7 +27,7 @@ module crc7
         end
         else begin
             // Algorithm stops here
-            if (data[WIDTH+6:7] == 0) begin
+            if (data[WIDTH[6:0]+6:7] == 0) begin
                 crc_ready <= 1'b1;
                 index     <= 7'b0;
                 data      <= data;

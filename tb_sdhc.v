@@ -66,11 +66,13 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
+    #40;
+
     $display("Starting CMD55 response @ time = %0d", $time);
 
     // CRC7 calculator: http://www.ghsi.de/pages/subpages/Online%20CRC%20Calculation/
     // { start bit, transmission bit, 6 bits CMD_INDEX, 32 bits card status, 7 bits CRC7, end bit}
-    card_status = 32'b0;
+    card_status = 32'd0;
     crc7 = 7'h78;
     cmd_en = 1'b1;
     R1_response = {1'b0, 1'b0, 6'd55, card_status, crc7, 1'b1};
@@ -103,13 +105,15 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
+    #40;
+
     $display("Starting ACMD41 response @ time = %0d", $time);
 
     // OCR[31] - busy flag
     // OCR defines what voltages ranges SD card can handle
     ocr = {1'b0, 31'b1};
     cmd_en = 1'b1;
-    R3_response = {1'b0, 1'b0, 6'b1, ocr, 7'b1, 1'b1};
+    R3_response = {1'b0, 1'b0, 6'h3F, ocr, 7'h7F, 1'b1};
 
     for (i = 47; i >= 0; i = i - 1) begin
         cmd_pin = R3_response[i];
@@ -139,14 +143,16 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
+    #40;
+
     $display("Starting CMD2 response @ time = %0d", $time);
 
     // cid is info about the SD card. random values can be used, but internal
     // CRC must be valid
-    crc7 = 7'h25;
-    cid = {120'hAFE53C7AB12900000ECD, crc7, 1'b1};
+    crc7 = 7'h59;
+    cid = {120'h7E4456BFAFE53C7AB12900000ECD, crc7};
     cmd_en = 1'b1;
-    R2_response = {1'b0, 1'b0, 6'b1, cid, 1'b1};
+    R2_response = {1'b0, 1'b0, 6'h3F, cid, 1'b1};
 
     for (i = 135; i >= 0; i = i - 1) begin
         cmd_pin = R2_response[i];
@@ -176,13 +182,15 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
+    #40;
+
     $display("Starting CMD3 response @ time = %0d", $time);
 
     rca = 16'hF792;
-    card_status = 16'b0;
-    crc7 = 7'h70;
+    card_status = 16'd0;
+    crc7 = 7'h17;
     cmd_en = 1'b1;
-    R6_response = {1'b0, 1'b0, 6'd3, rca, card_status, crc7, 1'b1};
+    R6_response = {1'b0, 1'b0, 6'd3, rca, card_status[15:0], crc7, 1'b1};
 
     for (i = 47; i >= 0; i = i - 1) begin
         cmd_pin = R6_response[i];
@@ -191,7 +199,7 @@ begin
 
     SD_CLK_PERIOD;
 
-    $display("SD received CMD2 response @ time = %0d", $time);
+    $display("SD received CMD3 response @ time = %0d", $time);
 
     cmd_en = 1'b0; SD_CLK_PERIOD; 
 end
@@ -249,7 +257,7 @@ initial begin
 
     CMD3;    
 
-    #10000;
+    while (!uut.receive.crc_ready_40) #10;
 
     $stop;
 end
