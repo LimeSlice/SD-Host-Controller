@@ -1,18 +1,22 @@
 module sd_host_controller (
     input ex_clk, ex_resetn, rx_pin,
-	 input sd_cd_pin, sd_wp_pin,
+	input sd_cd_pin, sd_wp_pin,
     output tx_pin,
-    inout sd_cmd_pin,
-    inout [3:0] sd_dat_pin
+    // inout sd_cmd_pin,
+    // inout [3:0] sd_dat_pin
+    input sd_cmd_in,
+    output sd_cmd_out,
+    input [3:0] sd_dat_in,
+    output [3:0] sd_dat_out
 );
 
-// enables for inout ports
-// sd_xx_pin = input
-// sd_xx_out = output
-wire sd_cmd_we, sd_dat_we, sd_cmd_out;
-wire [3:0] sd_dat_out;
-assign sd_cmd_pin = sd_cmd_we ? sd_cmd_out : 1'bz;
-assign sd_dat_pin = sd_dat_we ? sd_dat_out: 4'bz;
+// // enables for inout ports
+// // sd_xx_pin = input
+// // sd_xx_out = output
+wire sd_cmd_we, sd_dat_we/*, sd_cmd_out */;
+// wire [3:0] sd_dat_out;
+// assign sd_cmd_pin = sd_cmd_we ? sd_cmd_out : 1'bz;
+// assign sd_dat_pin = sd_dat_we ? sd_dat_out: 4'bz;
 
 wire sd_clk, sd_reset, software_reset, clk_div_reset, sd_tx_en, uart_cmd_en;
 wire received_error, host_reset_clear;
@@ -89,7 +93,7 @@ sd_send send (
 sd_receive receive (
     // inputs
     ex_clk, sd_clk, ~ex_resetn | sd_reset,
-    receive_en, R2_response, R3_response, sd_cmd_pin, 
+    receive_en, R2_response, R3_response/*, sd_cmd_pin */, sd_cmd_in, 
     // outputs
     response, 
     sd_receive_started, crc_loaded,

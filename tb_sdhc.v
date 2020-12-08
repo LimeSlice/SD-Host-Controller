@@ -3,14 +3,18 @@ module tb_sdhc;
 
 reg clk, resetn, rx_pin, cd_pin, wp_pin;
 wire tx_pin;
-wire sd_cmd_pin;
-wire [3:0] sd_dat_pin;
+// wire sd_cmd_pin;
+// wire [3:0] sd_dat_pin;
+reg cmd_pin; // in
+wire sd_cmd_pin; // out
+reg [3:0] dat_pin; // in
+wire [3:0] sd_dat_pin; // out
 
-reg cmd_en, dat_en, cmd_pin;
-reg dat_pin;
+reg cmd_en, dat_en/*, cmd_pin */;
+// reg dat_pin;
 
-assign sd_cmd_pin = cmd_en ? cmd_pin : 1'bz;
-assign sd_dat_pin = dat_en ? dat_pin : 4'bz;
+// assign sd_cmd_pin = cmd_en ? cmd_pin : 1'bz;
+// assign sd_dat_pin = dat_en ? dat_pin : 4'bz;
 
 // Helper registers / variables
 reg [135:0] R2_response;
@@ -26,7 +30,9 @@ sd_host_controller uut (
     clk, resetn, rx_pin,
     cd_pin, wp_pin,
     tx_pin,
+    cmd_pin,
     sd_cmd_pin,
+    dat_pin,
     sd_dat_pin
 );
 
