@@ -15,7 +15,7 @@ module sd_receive (
     parameter [2:1] IDLE = 2'b00, RECEIVING = 2'b01, LOAD = 2'b10, CHECKING = 2'b11;
 
     assign crc_loaded = crc_load_120 | crc_load_40;
-    assign response = R2_response ? rx_resp[133:7] : rx_resp[133:96];
+    assign response = R2_response ? rx_resp[133:7] : {rx_resp[133:96],{89{1'b0}}} ;
 
     // preserve R2 response variable as receives don't for crc7 checks
     always @(posedge ex_clk, posedge reset) begin

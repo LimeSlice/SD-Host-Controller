@@ -66,8 +66,6 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
-    #40;
-
     $display("Starting CMD55 response @ time = %0d", $time);
 
     // CRC7 calculator: http://www.ghsi.de/pages/subpages/Online%20CRC%20Calculation/
@@ -105,8 +103,6 @@ begin
 
     $display("SD done sending @ time = %0d", $time);
 
-    #40;
-
     $display("Starting ACMD41 response @ time = %0d", $time);
 
     // OCR[31] - busy flag
@@ -142,8 +138,6 @@ begin
     end
 
     $display("SD done sending @ time = %0d", $time);
-
-    #40;
 
     $display("Starting CMD2 response @ time = %0d", $time);
 
@@ -181,8 +175,6 @@ begin
     end
 
     $display("SD done sending @ time = %0d", $time);
-
-    #40;
 
     $display("Starting CMD3 response @ time = %0d", $time);
 
@@ -258,6 +250,8 @@ initial begin
     CMD3;    
 
     while (!uut.receive.crc_ready_40) #10;
+
+    $display("\n!!! Success !!!\n");
 
     $stop;
 end

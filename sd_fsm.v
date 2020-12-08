@@ -248,6 +248,7 @@ begin
             // cmd line not responding to CMD55 
             else if (receive_status_out[37:32] != CMD55) begin
                 // go to ERROR (temporary, need to update)
+                $display("Not CMD55");
                 NS = ERROR;
             end
 
