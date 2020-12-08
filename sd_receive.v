@@ -44,7 +44,7 @@ module sd_receive (
 
     always @(PS, receive_en, finished, crc_ready_40, crc_ready_120, 
 				 R2_response, R3_response, check_crc_120, rx_resp, 
-				 crc_ready_40, check_crc_40) 
+				 crc_ready_40, check_crc_40, r2_resp) 
 	 begin
 
         {crc_err, save_r2, rx_en, sd_receive_finished, crc_load_40, crc_load_120} = 0;

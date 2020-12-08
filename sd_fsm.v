@@ -239,7 +239,7 @@ begin
         IDLE__CMD55_PROC: begin
             // load register
             if (clock_counter_out == 6'd0) begin
-                receive_status_in[37:0] = response[133:96];
+                receive_status_in[37:0] = response[126:89];
                 receive_status_en = 1'b1;
                 clock_counter_in = 6'd1; // increment clock cycle once
                 NS = IDLE__CMD55_PROC;
