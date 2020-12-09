@@ -21,7 +21,7 @@ reg [31:0] denom;   // B
 reg [31:0] work;    // Running R  
 
 // Calculate the current digit  
-wire [32:0]   sub = { work[30:0], result[31] } - denom;  
+wire [32:0] sub = { work[30:0], result[31] } - denom;  
 assign err = !B;  
 
 // Send the results to our master  

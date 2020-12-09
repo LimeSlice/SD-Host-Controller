@@ -98,14 +98,13 @@ sd_fsm fsm (
     ocr_out,
     rca_out,
     // outputs
-    sd_reset, cid_en, rca_en, csd_en, ocr_en, dsr_en, send_en,
+    cid_en, rca_en, csd_en, dsr_en, send_en,
     receive_en, 
     R2_response, R3_response, receive_status_en, 
     clk_div_cnt_gen_start,
     cid_in, csd_in,
     receive_status_in,
     send_cmd_content,
-    ocr_in,
     rca_in, dsr_in
 );
 

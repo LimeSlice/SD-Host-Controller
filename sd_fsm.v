@@ -7,14 +7,13 @@ module sd_fsm (
     input [63:0]  receive_status_out,
     input [31:0]  ocr_out,
     input [15:0]  rca_out,
-    output reg sd_reset, cid_en, rca_en, csd_en, ocr_en, dsr_en, send_en,
+    output reg cid_en, rca_en, csd_en, dsr_en, send_en,
     output reg receive_en, 
     output reg R2_response, R3_response, receive_status_en, 
     output reg clk_div_cnt_gen_start,
     output reg [127:0] cid_in, csd_in,
     output reg [63:0]  receive_status_in,
     output reg [37:0]  send_cmd_content,
-    output reg [31:0]  ocr_in,
     output reg [15:0]  rca_in, dsr_in
 );
 

@@ -15,8 +15,11 @@ module sd_registers (
     output [15:0]  rca_out
 );
 
+wire [127:0] cid_out, csd_out;
+wire [15:0] dsr_out;
+
 // Card identification number
-register #(128,128'b0) CID (clk, reset, cid_in, cid_en,);
+register #(128,128'b0) CID (clk, reset, cid_in, cid_en, cid_out);
 
 // Relative card address; local address of a card
 // Reset = 0x0000
@@ -24,12 +27,12 @@ register #(16,0) RCA (clk, reset, rca_in, rca_en, rca_out);
 
 // Driver stage register
 // Reset setting (lowest speed, highest driving current capability)
-register #(16,16'h0404) DSR (clk, reset, dsr_in, dsr_en,);
+register #(16,16'h0404) DSR (clk, reset, dsr_in, dsr_en, dsr_out);
 
 // Card specific data; info about card operating conditions
 defparam CSD.WIDTH = 128;
 defparam CSD.RST_VAL = {24'b0, 8'b00110010, 96'b0};
-register CSD (clk, reset, csd_in, csd_en,);
+register CSD (clk, reset, csd_in, csd_en, csd_out);
 
 // Operation condition register
 // default VDD voltage profile of host 3.2-3.4V

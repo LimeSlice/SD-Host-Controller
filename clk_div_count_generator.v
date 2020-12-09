@@ -8,7 +8,7 @@ module clk_div_count_generator (
 
 reg [31:0] rate;
 
-wire [31:0] _count;
+wire [31:0] _count, R;
 
 // dff to delay ok signal 1 clk cycle
 always @(posedge clk)
@@ -21,7 +21,7 @@ divider gen (
     clk, reset, start, 
     32'd50_000_000, rate, 
     // outputs
-    _count,,
+    _count, R,
     ok, err
 );
 
