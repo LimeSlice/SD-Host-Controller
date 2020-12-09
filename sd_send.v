@@ -2,11 +2,10 @@ module sd_send (
     input ex_clk, sd_clk, reset, send_en,
     input [37:0] cmd_content,
     output sd_cmd, sending,
-    output reg sd_cmd_we, sd_dat_we, finished,
-    output [3:0] sd_dat
+    output reg finished
 );	 
 // not currently writing to sd_dat
-assign sd_dat = 4'b0;
+// assign sd_dat = 4'b0;
 
 // cmd_token[47]    = 0 (start bit)
 // cmd_token[46]    = 1 (transmitter bit: '1'= host command)
@@ -39,7 +38,7 @@ always @(posedge ex_clk, posedge reset) begin
 end
 
 always @(PS, send_en, crc_ready, sending) begin
-    {tx_reset, crc_load, sd_cmd_we, sd_dat_we, finished} = 0;
+    {tx_reset, crc_load, finished} = 0;
     case (PS)
         IDLE: begin
             if (send_en) begin
@@ -65,7 +64,6 @@ always @(PS, send_en, crc_ready, sending) begin
         end
         SENDING: begin
             if (sending) begin
-                sd_cmd_we = 1'b1;
                 NS = SENDING;
             end
             else begin

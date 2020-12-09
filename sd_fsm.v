@@ -1,25 +1,21 @@
 module sd_fsm (
-    input ex_clk, sd_clk, reset, software_reset, sd_cd_pin, sd_wp_pin,
-    input uart_cmd_en, crc_response_err, sd_receive_finished, sd_receive_started,
+    input ex_clk, sd_clk, reset, sd_cd_pin,
+    input crc_response_err, sd_receive_finished, sd_receive_started,
     input sd_sending, sd_send_finished, clk_div_cnt_gen_ok, clk_div_cnt_gen_err,
     input crc_loaded,
-    input [127:0] cid_out, csd_out, 
     input [126:0] response, 
-    input [63:0]  scr_out, receive_status_out,
+    input [63:0]  receive_status_out,
     input [31:0]  ocr_out,
-    input [15:0]  rca_out, dsr_out,
-    input [5:0]   uart_cmd,
-    input [3:0]   host_cmd,
-    output reg sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-    output reg sd_tx_en, receive_en, 
-    output reg R2_response, R3_response, received_error, receive_status_en, 
-    output reg clk_div_cnt_gen_start, host_reset_clear,
+    input [15:0]  rca_out,
+    output reg sd_reset, cid_en, rca_en, csd_en, ocr_en, dsr_en, send_en,
+    output reg receive_en, 
+    output reg R2_response, R3_response, receive_status_en, 
+    output reg clk_div_cnt_gen_start,
     output reg [127:0] cid_in, csd_in,
-    output reg [63:0]  scr_in, receive_status_in,
+    output reg [63:0]  receive_status_in,
     output reg [37:0]  send_cmd_content,
     output reg [31:0]  ocr_in,
-    output reg [15:0]  rca_in, dsr_in,
-    output reg [7:0]   sd_tx_data
+    output reg [15:0]  rca_in, dsr_in
 );
 
 reg [10:1] PS, NS;
@@ -98,23 +94,21 @@ always @(posedge ex_clk, posedge reset) begin
     else        PS <= NS;
 end
 
-always @(PS, software_reset, uart_cmd_en, sd_receive_finished, 
+always @(PS, sd_receive_finished, 
          sd_sending, sd_send_finished, sd_receive_started, 
          clk_div_cnt_gen_ok, clk_div_cnt_gen_err, crc_loaded, 
-         cid_out, csd_out, response, scr_out, receive_status_out, ocr_out,
-         rca_out, dsr_out, uart_cmd, host_cmd, sd_cd_pin, sd_wp_pin, 
-         clock_counter_out, timeout_counter_out) 
+         response, receive_status_out, ocr_out,
+         rca_out, sd_cd_pin, clock_counter_out, timeout_counter_out) 
 begin
-	{	sd_reset, cid_en, rca_en, dsr_en, csd_en, scr_en, ocr_en, send_en,
-		sd_tx_en, receive_en, 
-		R2_response, R3_response, received_error, receive_status_en, 
-		clk_div_cnt_gen_start, host_reset_clear,
+	{	sd_reset, cid_en, rca_en, csd_en, ocr_en, dsr_en, send_en,
+		receive_en, 
+		R2_response, R3_response, receive_status_en, 
+		clk_div_cnt_gen_start,
 		cid_in, csd_in,
-		scr_in, receive_status_in,
+		receive_status_in,
 		send_cmd_content,
 		ocr_in,
 		rca_in, dsr_in,
-		sd_tx_data,
 		timeout_counter_in, clock_counter_in
 	  } = 0;
 
@@ -176,13 +170,7 @@ begin
         end
 
         IDLE__CMD55_SEND: begin
-            // check for software reset
-            if (software_reset) begin
-                host_reset_clear = 1'b1;
-                NS = IDENT_MODE__CMD0_SEND;
-            end
-            
-            else if (sd_sending) begin
+             if (sd_sending) begin
                 NS = IDLE__CMD55_WAIT;
             end
 
@@ -248,7 +236,6 @@ begin
             // cmd line not responding to CMD55 
             else if (receive_status_out[37:32] != CMD55) begin
                 // go to ERROR (temporary, need to update)
-                $display("Not CMD55");
                 NS = ERROR;
             end
 
@@ -352,11 +339,7 @@ begin
         end
 
         READY__CMD2_SEND: begin
-            // check for software reset
-            if (software_reset) begin
-                NS = IDENT_MODE__CMD0_SEND;
-            end
-            else if (sd_sending) begin
+            if (sd_sending) begin
                 NS = READY__CMD2_WAIT;
             end
             // send ACMD41 -- OCR w/o busy bit
@@ -425,11 +408,7 @@ begin
         end
 
         IDENTIFICATION__CMD3_SEND: begin
-            // check for software reset
-            if (software_reset) begin
-                NS = IDENT_MODE__CMD0_SEND;
-            end
-            else if (sd_sending) begin
+            if (sd_sending) begin
                 NS = IDENTIFICATION__CMD3_WAIT;
             end
             // send ACMD41 -- OCR w/o busy bit

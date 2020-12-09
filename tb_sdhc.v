@@ -27,13 +27,10 @@ reg [6:0] crc7;
 integer i;
 
 sd_host_controller uut (
-    clk, resetn, rx_pin,
-    cd_pin, wp_pin,
-    tx_pin,
+    clk, resetn,
+    cd_pin,
     cmd_pin,
-    sd_cmd_pin,
-    dat_pin,
-    sd_dat_pin
+    sd_cmd_pin
 );
 
 always #5 clk = ~clk;
