@@ -99,14 +99,13 @@ always @(PS, sd_receive_finished,
          response, receive_status_out, ocr_out,
          rca_out, sd_cd_pin, clock_counter_out, timeout_counter_out) 
 begin
-	{	sd_reset, cid_en, rca_en, csd_en, ocr_en, dsr_en, send_en,
+	{	sd_reset, cid_en, rca_en, csd_en, dsr_en, send_en,
 		receive_en, 
 		R2_response, R3_response, receive_status_en, 
 		clk_div_cnt_gen_start,
 		cid_in, csd_in,
 		receive_status_in,
 		send_cmd_content,
-		ocr_in,
 		rca_in, dsr_in,
 		timeout_counter_in, clock_counter_in
 	  } = 0;
